@@ -20,6 +20,7 @@ Documentation and code may link to plans to indicate when a feature was introduc
 | [PLAN-007](plan-007-postgresql-event-store.md) | PostgreSQL Event Store implementation | Not Started | 2026-04-13 |
 | [PLAN-008](plan-008-integration-tests.md) | Integration tests with Testcontainers | Not Started | 2026-04-13 |
 | [PLAN-009](plan-009-event-versioning.md) | Event versioning and schema evolution | Not Started | 2026-04-13 |
+| [PLAN-010](plan-010-openapi-codegen.md) | OpenAPI-first HTTP layer with oapi-codegen + chi | Not Started | 2026-04-13 |
 
 ## Statuses
 
