@@ -10,6 +10,13 @@
 Bootstrap the Go project with the full skeleton for DDD + CQRS + Event Sourcing,
 establish docs-as-code documentation structure, and push to GitHub.
 
+## Acceptance Criteria
+
+- [x] `go build ./...` succeeds with no errors
+- [x] `GET /health` returns `{"status":"ok"}` with HTTP 200
+- [x] `docs/` structure exists with all layers documented
+- [x] Code pushed to GitHub
+
 ## Tasks
 
 - [x] Initialize Go module `github.com/savvinovan/event-sourcing-learning`
