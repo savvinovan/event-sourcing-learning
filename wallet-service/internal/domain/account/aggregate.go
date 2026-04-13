@@ -1,6 +1,8 @@
 package account
 
 import (
+	"github.com/shopspring/decimal"
+
 	"github.com/savvinovan/wallet-service/internal/domain/aggregate"
 	"github.com/savvinovan/wallet-service/internal/domain/event"
 )
@@ -12,19 +14,18 @@ type Account struct {
 
 	customerID CustomerID
 	status     AccountStatus
-	balance    int64  // in minor units (e.g. cents)
+	balance    decimal.Decimal
 	currency   string
 }
 
 // Getters — read-only access for query handlers and projections.
-func (a *Account) AccountID() AccountID     { return AccountID(a.ID()) }
-func (a *Account) CustomerID() CustomerID   { return a.customerID }
-func (a *Account) Status() AccountStatus    { return a.status }
-func (a *Account) Balance() int64           { return a.balance }
-func (a *Account) Currency() string         { return a.currency }
+func (a *Account) AccountID() AccountID       { return AccountID(a.ID()) }
+func (a *Account) CustomerID() CustomerID     { return a.customerID }
+func (a *Account) Status() AccountStatus      { return a.status }
+func (a *Account) Balance() decimal.Decimal   { return a.balance }
+func (a *Account) Currency() string           { return a.currency }
 
 // Restore rebuilds account state by replaying persisted events.
-// Called by command and query handlers before executing any operation.
 func (a *Account) Restore(events []event.DomainEvent) {
 	a.Root.LoadFromHistory(events, a.apply)
 }
@@ -45,7 +46,7 @@ func (a *Account) Open(id AccountID, customerID CustomerID, currency string) err
 }
 
 // Deposit credits funds to the account. Allowed in any non-frozen status.
-func (a *Account) Deposit(amount int64, currency string) error {
+func (a *Account) Deposit(amount decimal.Decimal, currency string) error {
 	if a.status == StatusFrozen {
 		return ErrNotActive
 	}
@@ -64,7 +65,7 @@ func (a *Account) Deposit(amount int64, currency string) error {
 }
 
 // Withdraw debits funds from the account. Requires Active status and sufficient balance.
-func (a *Account) Withdraw(amount int64, currency string) error {
+func (a *Account) Withdraw(amount decimal.Decimal, currency string) error {
 	if a.status != StatusActive {
 		return ErrNotActive
 	}
@@ -74,7 +75,7 @@ func (a *Account) Withdraw(amount int64, currency string) error {
 	if currency != a.currency {
 		return ErrCurrencyMismatch
 	}
-	if a.balance < amount {
+	if a.balance.LessThan(amount) {
 		return ErrInsufficientFunds
 	}
 	a.applyAndRecord(MoneyWithdrawn{
@@ -108,16 +109,11 @@ func (a *Account) Freeze(reason string) error {
 	return nil
 }
 
-// --- Event sourcing internals ---
-
-// applyAndRecord applies a domain event to update state and records it as an uncommitted change.
 func (a *Account) applyAndRecord(e event.DomainEvent) {
 	a.apply(e)
 	a.Record(e)
 }
 
-// apply updates aggregate state from a domain event.
-// Called both during command execution and history replay.
 func (a *Account) apply(e event.DomainEvent) {
 	switch v := e.(type) {
 	case AccountOpened:
@@ -125,11 +121,11 @@ func (a *Account) apply(e event.DomainEvent) {
 		a.customerID = v.CustomerID
 		a.currency = v.Currency
 		a.status = StatusPending
-		a.balance = 0
+		a.balance = decimal.Zero
 	case MoneyDeposited:
-		a.balance += v.Amount
+		a.balance = a.balance.Add(v.Amount)
 	case MoneyWithdrawn:
-		a.balance -= v.Amount
+		a.balance = a.balance.Sub(v.Amount)
 	case AccountActivated:
 		a.status = StatusActive
 	case AccountFrozen:

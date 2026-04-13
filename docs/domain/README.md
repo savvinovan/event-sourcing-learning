@@ -20,13 +20,13 @@ An `Account` is always rebuilt from its event history — no mutable state is st
 ```mermaid
 classDiagram
     class Account {
-        -customerID string
+        -customerID CustomerID
         -status AccountStatus
-        -balance int64
+        -balance decimal.Decimal
         -currency string
-        +Open(id, customerID, currency)
-        +Deposit(amount, currency)
-        +Withdraw(amount, currency)
+        +Open(id AccountID, customerID CustomerID, currency)
+        +Deposit(amount decimal.Decimal, currency)
+        +Withdraw(amount decimal.Decimal, currency)
         +Activate()
         +Freeze(reason)
         +Restore([]DomainEvent)
@@ -41,9 +41,9 @@ classDiagram
     }
 
     class Money {
-        +Amount int64
+        +Amount decimal.Decimal
         +Currency string
-        +NewMoney(amount, currency)
+        +NewMoney(amount decimal.Decimal, currency)
     }
 
     Account --> AccountStatus
@@ -54,9 +54,9 @@ classDiagram
 
 | Event | Trigger | Fields |
 |-------|---------|--------|
-| `AccountOpened` | `Open()` | CustomerID, Currency |
-| `MoneyDeposited` | `Deposit()` | Amount, Currency |
-| `MoneyWithdrawn` | `Withdraw()` | Amount, Currency |
+| `AccountOpened` | `Open()` | CustomerID `CustomerID`, Currency `string` |
+| `MoneyDeposited` | `Deposit()` | Amount `decimal.Decimal`, Currency `string` |
+| `MoneyWithdrawn` | `Withdraw()` | Amount `decimal.Decimal`, Currency `string` |
 | `AccountActivated` | `Activate()` | — |
 | `AccountFrozen` | `Freeze()` | Reason |
 
@@ -75,8 +75,10 @@ stateDiagram-v2
 - New accounts start in `Pending` status (awaiting KYC verification).
 - Deposits are allowed in any non-frozen status.
 - Withdrawals require `Active` status.
-- Balance is stored in minor units (cents). Amount must be positive.
+- Balance and amounts use `decimal.Decimal` (`github.com/shopspring/decimal`) — never `int64` or `float64`.
+- Amount must be positive (`> 0`).
 - Currency must match the account's registered currency.
+- IDs (`AccountID`, `CustomerID`) are UUID v7 generated via `github.com/google/uuid`.
 
 #### Domain Errors
 

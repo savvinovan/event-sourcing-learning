@@ -1,6 +1,8 @@
 package account
 
 import (
+	"github.com/shopspring/decimal"
+
 	"github.com/savvinovan/wallet-service/internal/application/query"
 	domain "github.com/savvinovan/wallet-service/internal/domain/account"
 )
@@ -21,7 +23,7 @@ func (q GetBalanceQuery) QueryType() query.QueryType { return QryGetBalance }
 type BalanceResult struct {
 	AccountID  domain.AccountID
 	CustomerID domain.CustomerID
-	Balance    int64
+	Balance    decimal.Decimal
 	Currency   string
 	Status     string
 }
@@ -36,7 +38,7 @@ func (q GetTransactionsQuery) QueryType() query.QueryType { return QryGetTransac
 // TransactionRecord is a single entry in the transaction history.
 type TransactionRecord struct {
 	Type       string // "deposit" or "withdrawal"
-	Amount     int64
+	Amount     decimal.Decimal
 	Currency   string
 	OccurredAt string // RFC3339
 }

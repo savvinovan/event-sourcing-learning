@@ -1,5 +1,7 @@
 package handler
 
+import "github.com/shopspring/decimal"
+
 // Request DTOs
 
 type OpenAccountRequest struct {
@@ -8,30 +10,30 @@ type OpenAccountRequest struct {
 }
 
 type DepositRequest struct {
-	Amount   int64  `json:"amount"`
-	Currency string `json:"currency"`
+	Amount   decimal.Decimal `json:"amount"`
+	Currency string          `json:"currency"`
 }
 
 type WithdrawRequest struct {
-	Amount   int64  `json:"amount"`
-	Currency string `json:"currency"`
+	Amount   decimal.Decimal `json:"amount"`
+	Currency string          `json:"currency"`
 }
 
 // Response DTOs
 
 type BalanceResponse struct {
-	AccountID  string `json:"account_id"`
-	CustomerID string `json:"customer_id"`
-	Balance    int64  `json:"balance"`
-	Currency   string `json:"currency"`
-	Status     string `json:"status"`
+	AccountID  string          `json:"account_id"`
+	CustomerID string          `json:"customer_id"`
+	Balance    decimal.Decimal `json:"balance"`
+	Currency   string          `json:"currency"`
+	Status     string          `json:"status"`
 }
 
 type TransactionResponse struct {
-	Type       string `json:"type"`
-	Amount     int64  `json:"amount"`
-	Currency   string `json:"currency"`
-	OccurredAt string `json:"occurred_at"`
+	Type       string          `json:"type"`
+	Amount     decimal.Decimal `json:"amount"`
+	Currency   string          `json:"currency"`
+	OccurredAt string          `json:"occurred_at"`
 }
 
 type ErrorResponse struct {

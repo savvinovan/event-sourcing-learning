@@ -1,6 +1,8 @@
 package account
 
 import (
+	"github.com/shopspring/decimal"
+
 	"github.com/savvinovan/wallet-service/internal/application/command"
 	domain "github.com/savvinovan/wallet-service/internal/domain/account"
 )
@@ -23,7 +25,7 @@ func (c OpenAccountCommand) CommandType() command.CommandType { return CmdOpenAc
 
 type DepositMoneyCommand struct {
 	AccountID domain.AccountID
-	Amount    int64
+	Amount    decimal.Decimal
 	Currency  string
 }
 
@@ -31,7 +33,7 @@ func (c DepositMoneyCommand) CommandType() command.CommandType { return CmdDepos
 
 type WithdrawMoneyCommand struct {
 	AccountID domain.AccountID
-	Amount    int64
+	Amount    decimal.Decimal
 	Currency  string
 }
 
