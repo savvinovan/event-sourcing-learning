@@ -2,7 +2,7 @@
 
 | | |
 |-|-|
-| **Status** | Not Started |
+| **Status** | Completed |
 | **Date** | 2026-04-13 |
 | **Depends on** | [PLAN-002](plan-002-monorepo-restructure.md), [PLAN-003](plan-003-contracts-module.md) |
 
@@ -53,27 +53,29 @@ Transactions are blocked until KYC is verified.
 
 ## Acceptance Criteria
 
-- [ ] `POST /accounts` creates an account in `Pending` status — verified via `GET /accounts/{id}/balance`
-- [ ] `POST /accounts/{id}/deposit` increases balance — verified via balance endpoint
-- [ ] `POST /accounts/{id}/withdraw` on a `Pending` account returns error (not KYC verified)
-- [ ] `POST /accounts/{id}/withdraw` on an `Active` account with sufficient balance succeeds
-- [ ] `POST /accounts/{id}/withdraw` with insufficient balance returns error
-- [ ] Two concurrent withdrawals that together exceed balance — only one succeeds (optimistic concurrency)
-- [ ] `GET /accounts/{id}/transactions` returns all deposits and withdrawals in order
-- [ ] Account transitions to `Active` when `AccountActivated` command is dispatched
-- [ ] Account transitions to `Frozen` when `AccountFrozen` command is dispatched
-- [ ] All account state is fully reconstructible by replaying events from the event store
+- [x] `POST /accounts` creates an account in `Pending` status — verified via `GET /accounts/{id}/balance`
+- [x] `POST /accounts/{id}/deposit` increases balance — verified via balance endpoint
+- [x] `POST /accounts/{id}/withdraw` on a `Pending` account returns error (not KYC verified)
+- [x] `POST /accounts/{id}/withdraw` on an `Active` account with sufficient balance succeeds
+- [x] `POST /accounts/{id}/withdraw` with insufficient balance returns error
+- [x] Two concurrent withdrawals that together exceed balance — only one succeeds (optimistic concurrency)
+- [x] `GET /accounts/{id}/transactions` returns all deposits and withdrawals in order
+- [x] Account transitions to `Active` when `AccountActivated` command is dispatched
+- [x] Account transitions to `Frozen` when `AccountFrozen` command is dispatched
+- [x] All account state is fully reconstructible by replaying events from the event store
 
 ## Tasks
 
-- [ ] `Account` aggregate with all commands and events
-- [ ] `AccountStatus` value object (`Pending`, `Active`, `Frozen`)
-- [ ] `Money` value object (amount + currency)
-- [ ] Command handlers for all write operations
-- [ ] In-memory event store implementation
-- [ ] Balance projection (query handler)
-- [ ] Transaction history projection (query handler)
-- [ ] HTTP handlers and router wiring
-- [ ] uber/fx module for wallet domain
+- [x] `Account` aggregate with all commands and events
+- [x] `AccountStatus` value object (`Pending`, `Active`, `Frozen`)
+- [x] `Money` value object (amount + currency)
+- [x] Command handlers for all write operations
+- [x] In-memory event store implementation
+- [x] Balance projection (query handler)
+- [x] Transaction history projection (query handler)
+- [x] HTTP handlers and router wiring
+- [x] uber/fx module for wallet domain
 - [ ] Subscribe to KYC events from kyc-service (see [PLAN-006](plan-006-event-driven-integration.md))
-- [ ] Update docs
+- [x] Update docs
+
+> **Note:** `InitiateTransfer` command/event and `POST /accounts/{id}/transfer` endpoint are deferred — no acceptance criteria require them and they depend on PLAN-005 (KYC) and PLAN-006 (Kafka).
