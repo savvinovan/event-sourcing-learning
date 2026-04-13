@@ -16,7 +16,7 @@ func NewGetKYCStatusHandler(s eventstore.EventStore) *GetKYCStatusHandler {
 }
 
 func (h *GetKYCStatusHandler) Handle(ctx context.Context, q GetKYCStatusQuery) (KYCStatusResult, error) {
-	events, err := h.store.Load(ctx, q.VerificationID)
+	events, err := h.store.Load(ctx, string(q.VerificationID))
 	if err != nil {
 		return KYCStatusResult{}, fmt.Errorf("get kyc status: load: %w", err)
 	}
@@ -27,7 +27,7 @@ func (h *GetKYCStatusHandler) Handle(ctx context.Context, q GetKYCStatusQuery) (
 	agg.Restore(events)
 
 	return KYCStatusResult{
-		VerificationID: agg.ID(),
+		VerificationID: agg.VerificationID(),
 		CustomerID:     agg.CustomerID(),
 		Status:         agg.Status().String(),
 		Reason:         agg.Reason(),

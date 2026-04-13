@@ -21,14 +21,14 @@ type WithdrawMoneyHandler struct{ store eventstore.EventStore }
 type ActivateAccountHandler struct{ store eventstore.EventStore }
 type FreezeAccountHandler struct{ store eventstore.EventStore }
 
-func NewOpenAccountHandler(s eventstore.EventStore) *OpenAccountHandler       { return &OpenAccountHandler{s} }
-func NewDepositMoneyHandler(s eventstore.EventStore) *DepositMoneyHandler     { return &DepositMoneyHandler{s} }
-func NewWithdrawMoneyHandler(s eventstore.EventStore) *WithdrawMoneyHandler   { return &WithdrawMoneyHandler{s} }
+func NewOpenAccountHandler(s eventstore.EventStore) *OpenAccountHandler         { return &OpenAccountHandler{s} }
+func NewDepositMoneyHandler(s eventstore.EventStore) *DepositMoneyHandler       { return &DepositMoneyHandler{s} }
+func NewWithdrawMoneyHandler(s eventstore.EventStore) *WithdrawMoneyHandler     { return &WithdrawMoneyHandler{s} }
 func NewActivateAccountHandler(s eventstore.EventStore) *ActivateAccountHandler { return &ActivateAccountHandler{s} }
-func NewFreezeAccountHandler(s eventstore.EventStore) *FreezeAccountHandler   { return &FreezeAccountHandler{s} }
+func NewFreezeAccountHandler(s eventstore.EventStore) *FreezeAccountHandler     { return &FreezeAccountHandler{s} }
 
 func (h *OpenAccountHandler) Handle(ctx context.Context, cmd OpenAccountCommand) error {
-	events, err := h.store.Load(ctx, cmd.AccountID)
+	events, err := h.store.Load(ctx, string(cmd.AccountID))
 	if err != nil {
 		return fmt.Errorf("open account: load: %w", err)
 	}
@@ -38,7 +38,7 @@ func (h *OpenAccountHandler) Handle(ctx context.Context, cmd OpenAccountCommand)
 	if err := agg.Open(cmd.AccountID, cmd.CustomerID, cmd.Currency); err != nil {
 		return err
 	}
-	if err := h.store.Append(ctx, cmd.AccountID, agg.Changes(), expectedVersion(agg)); err != nil {
+	if err := h.store.Append(ctx, string(cmd.AccountID), agg.Changes(), expectedVersion(agg)); err != nil {
 		return fmt.Errorf("open account: append: %w", err)
 	}
 	agg.ClearChanges()
@@ -46,7 +46,7 @@ func (h *OpenAccountHandler) Handle(ctx context.Context, cmd OpenAccountCommand)
 }
 
 func (h *DepositMoneyHandler) Handle(ctx context.Context, cmd DepositMoneyCommand) error {
-	events, err := h.store.Load(ctx, cmd.AccountID)
+	events, err := h.store.Load(ctx, string(cmd.AccountID))
 	if err != nil {
 		return fmt.Errorf("deposit: load: %w", err)
 	}
@@ -59,7 +59,7 @@ func (h *DepositMoneyHandler) Handle(ctx context.Context, cmd DepositMoneyComman
 	if err := agg.Deposit(cmd.Amount, cmd.Currency); err != nil {
 		return err
 	}
-	if err := h.store.Append(ctx, cmd.AccountID, agg.Changes(), expectedVersion(agg)); err != nil {
+	if err := h.store.Append(ctx, string(cmd.AccountID), agg.Changes(), expectedVersion(agg)); err != nil {
 		return fmt.Errorf("deposit: append: %w", err)
 	}
 	agg.ClearChanges()
@@ -67,7 +67,7 @@ func (h *DepositMoneyHandler) Handle(ctx context.Context, cmd DepositMoneyComman
 }
 
 func (h *WithdrawMoneyHandler) Handle(ctx context.Context, cmd WithdrawMoneyCommand) error {
-	events, err := h.store.Load(ctx, cmd.AccountID)
+	events, err := h.store.Load(ctx, string(cmd.AccountID))
 	if err != nil {
 		return fmt.Errorf("withdraw: load: %w", err)
 	}
@@ -80,7 +80,7 @@ func (h *WithdrawMoneyHandler) Handle(ctx context.Context, cmd WithdrawMoneyComm
 	if err := agg.Withdraw(cmd.Amount, cmd.Currency); err != nil {
 		return err
 	}
-	if err := h.store.Append(ctx, cmd.AccountID, agg.Changes(), expectedVersion(agg)); err != nil {
+	if err := h.store.Append(ctx, string(cmd.AccountID), agg.Changes(), expectedVersion(agg)); err != nil {
 		return fmt.Errorf("withdraw: append: %w", err)
 	}
 	agg.ClearChanges()
@@ -88,7 +88,7 @@ func (h *WithdrawMoneyHandler) Handle(ctx context.Context, cmd WithdrawMoneyComm
 }
 
 func (h *ActivateAccountHandler) Handle(ctx context.Context, cmd ActivateAccountCommand) error {
-	events, err := h.store.Load(ctx, cmd.AccountID)
+	events, err := h.store.Load(ctx, string(cmd.AccountID))
 	if err != nil {
 		return fmt.Errorf("activate: load: %w", err)
 	}
@@ -101,7 +101,7 @@ func (h *ActivateAccountHandler) Handle(ctx context.Context, cmd ActivateAccount
 	if err := agg.Activate(); err != nil {
 		return err
 	}
-	if err := h.store.Append(ctx, cmd.AccountID, agg.Changes(), expectedVersion(agg)); err != nil {
+	if err := h.store.Append(ctx, string(cmd.AccountID), agg.Changes(), expectedVersion(agg)); err != nil {
 		return fmt.Errorf("activate: append: %w", err)
 	}
 	agg.ClearChanges()
@@ -109,7 +109,7 @@ func (h *ActivateAccountHandler) Handle(ctx context.Context, cmd ActivateAccount
 }
 
 func (h *FreezeAccountHandler) Handle(ctx context.Context, cmd FreezeAccountCommand) error {
-	events, err := h.store.Load(ctx, cmd.AccountID)
+	events, err := h.store.Load(ctx, string(cmd.AccountID))
 	if err != nil {
 		return fmt.Errorf("freeze: load: %w", err)
 	}
@@ -122,7 +122,7 @@ func (h *FreezeAccountHandler) Handle(ctx context.Context, cmd FreezeAccountComm
 	if err := agg.Freeze(cmd.Reason); err != nil {
 		return err
 	}
-	if err := h.store.Append(ctx, cmd.AccountID, agg.Changes(), expectedVersion(agg)); err != nil {
+	if err := h.store.Append(ctx, string(cmd.AccountID), agg.Changes(), expectedVersion(agg)); err != nil {
 		return fmt.Errorf("freeze: append: %w", err)
 	}
 	agg.ClearChanges()

@@ -1,6 +1,9 @@
 package account
 
-import "github.com/savvinovan/wallet-service/internal/application/query"
+import (
+	"github.com/savvinovan/wallet-service/internal/application/query"
+	domain "github.com/savvinovan/wallet-service/internal/domain/account"
+)
 
 const (
 	QryGetBalance      query.QueryType = "GetBalance"
@@ -9,15 +12,15 @@ const (
 
 // GetBalanceQuery returns the current balance and status of an account.
 type GetBalanceQuery struct {
-	AccountID string
+	AccountID domain.AccountID
 }
 
 func (q GetBalanceQuery) QueryType() query.QueryType { return QryGetBalance }
 
 // BalanceResult is the read model returned by GetBalanceQuery.
 type BalanceResult struct {
-	AccountID  string
-	CustomerID string
+	AccountID  domain.AccountID
+	CustomerID domain.CustomerID
 	Balance    int64
 	Currency   string
 	Status     string
@@ -25,7 +28,7 @@ type BalanceResult struct {
 
 // GetTransactionsQuery returns the transaction history for an account.
 type GetTransactionsQuery struct {
-	AccountID string
+	AccountID domain.AccountID
 }
 
 func (q GetTransactionsQuery) QueryType() query.QueryType { return QryGetTransactions }

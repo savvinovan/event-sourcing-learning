@@ -35,7 +35,7 @@ func (h *AccountHandler) OpenAccount(w http.ResponseWriter, r *http.Request) {
 	accountID := domain.NewAccountID()
 	cmd := appaccount.OpenAccountCommand{
 		AccountID:  accountID,
-		CustomerID: req.CustomerID,
+		CustomerID: domain.CustomerID(req.CustomerID),
 		Currency:   req.Currency,
 	}
 	if err := h.commands.Dispatch(r.Context(), cmd); err != nil {
@@ -45,12 +45,12 @@ func (h *AccountHandler) OpenAccount(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(map[string]string{"account_id": accountID})
+	_ = json.NewEncoder(w).Encode(map[string]string{"account_id": string(accountID)})
 }
 
 // POST /accounts/{id}/deposit
 func (h *AccountHandler) Deposit(w http.ResponseWriter, r *http.Request) {
-	accountID := chi.URLParam(r, "id")
+	accountID := domain.AccountID(chi.URLParam(r, "id"))
 
 	var req DepositRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -73,7 +73,7 @@ func (h *AccountHandler) Deposit(w http.ResponseWriter, r *http.Request) {
 
 // POST /accounts/{id}/withdraw
 func (h *AccountHandler) Withdraw(w http.ResponseWriter, r *http.Request) {
-	accountID := chi.URLParam(r, "id")
+	accountID := domain.AccountID(chi.URLParam(r, "id"))
 
 	var req WithdrawRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -96,7 +96,7 @@ func (h *AccountHandler) Withdraw(w http.ResponseWriter, r *http.Request) {
 
 // GET /accounts/{id}/balance
 func (h *AccountHandler) GetBalance(w http.ResponseWriter, r *http.Request) {
-	accountID := chi.URLParam(r, "id")
+	accountID := domain.AccountID(chi.URLParam(r, "id"))
 
 	result, err := h.queries.Ask(r.Context(), appaccount.GetBalanceQuery{AccountID: accountID})
 	if err != nil {
@@ -112,8 +112,8 @@ func (h *AccountHandler) GetBalance(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := BalanceResponse{
-		AccountID:  balance.AccountID,
-		CustomerID: balance.CustomerID,
+		AccountID:  string(balance.AccountID),
+		CustomerID: string(balance.CustomerID),
 		Balance:    balance.Balance,
 		Currency:   balance.Currency,
 		Status:     balance.Status,
@@ -125,7 +125,7 @@ func (h *AccountHandler) GetBalance(w http.ResponseWriter, r *http.Request) {
 
 // GET /accounts/{id}/transactions
 func (h *AccountHandler) GetTransactions(w http.ResponseWriter, r *http.Request) {
-	accountID := chi.URLParam(r, "id")
+	accountID := domain.AccountID(chi.URLParam(r, "id"))
 
 	result, err := h.queries.Ask(r.Context(), appaccount.GetTransactionsQuery{AccountID: accountID})
 	if err != nil {

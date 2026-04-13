@@ -24,7 +24,7 @@ func NewApproveKYCHandler(s eventstore.EventStore) *ApproveKYCHandler { return &
 func NewRejectKYCHandler(s eventstore.EventStore) *RejectKYCHandler   { return &RejectKYCHandler{s} }
 
 func (h *SubmitKYCHandler) Handle(ctx context.Context, cmd SubmitKYCCommand) error {
-	events, err := h.store.Load(ctx, cmd.VerificationID)
+	events, err := h.store.Load(ctx, string(cmd.VerificationID))
 	if err != nil {
 		return fmt.Errorf("submit kyc: load: %w", err)
 	}
@@ -34,7 +34,7 @@ func (h *SubmitKYCHandler) Handle(ctx context.Context, cmd SubmitKYCCommand) err
 	if err := agg.Submit(cmd.VerificationID, cmd.CustomerID); err != nil {
 		return err
 	}
-	if err := h.store.Append(ctx, cmd.VerificationID, agg.Changes(), expectedVersion(agg)); err != nil {
+	if err := h.store.Append(ctx, string(cmd.VerificationID), agg.Changes(), expectedVersion(agg)); err != nil {
 		return fmt.Errorf("submit kyc: append: %w", err)
 	}
 	agg.ClearChanges()
@@ -42,7 +42,7 @@ func (h *SubmitKYCHandler) Handle(ctx context.Context, cmd SubmitKYCCommand) err
 }
 
 func (h *ApproveKYCHandler) Handle(ctx context.Context, cmd ApproveKYCCommand) error {
-	events, err := h.store.Load(ctx, cmd.VerificationID)
+	events, err := h.store.Load(ctx, string(cmd.VerificationID))
 	if err != nil {
 		return fmt.Errorf("approve kyc: load: %w", err)
 	}
@@ -55,7 +55,7 @@ func (h *ApproveKYCHandler) Handle(ctx context.Context, cmd ApproveKYCCommand) e
 	if err := agg.Approve(); err != nil {
 		return err
 	}
-	if err := h.store.Append(ctx, cmd.VerificationID, agg.Changes(), expectedVersion(agg)); err != nil {
+	if err := h.store.Append(ctx, string(cmd.VerificationID), agg.Changes(), expectedVersion(agg)); err != nil {
 		return fmt.Errorf("approve kyc: append: %w", err)
 	}
 	agg.ClearChanges()
@@ -63,7 +63,7 @@ func (h *ApproveKYCHandler) Handle(ctx context.Context, cmd ApproveKYCCommand) e
 }
 
 func (h *RejectKYCHandler) Handle(ctx context.Context, cmd RejectKYCCommand) error {
-	events, err := h.store.Load(ctx, cmd.VerificationID)
+	events, err := h.store.Load(ctx, string(cmd.VerificationID))
 	if err != nil {
 		return fmt.Errorf("reject kyc: load: %w", err)
 	}
@@ -76,7 +76,7 @@ func (h *RejectKYCHandler) Handle(ctx context.Context, cmd RejectKYCCommand) err
 	if err := agg.Reject(cmd.Reason); err != nil {
 		return err
 	}
-	if err := h.store.Append(ctx, cmd.VerificationID, agg.Changes(), expectedVersion(agg)); err != nil {
+	if err := h.store.Append(ctx, string(cmd.VerificationID), agg.Changes(), expectedVersion(agg)); err != nil {
 		return fmt.Errorf("reject kyc: append: %w", err)
 	}
 	agg.ClearChanges()

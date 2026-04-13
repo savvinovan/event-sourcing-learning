@@ -1,6 +1,9 @@
 package account
 
-import "github.com/savvinovan/wallet-service/internal/application/command"
+import (
+	"github.com/savvinovan/wallet-service/internal/application/command"
+	domain "github.com/savvinovan/wallet-service/internal/domain/account"
+)
 
 const (
 	CmdOpenAccount     command.CommandType = "OpenAccount"
@@ -11,15 +14,15 @@ const (
 )
 
 type OpenAccountCommand struct {
-	AccountID  string
-	CustomerID string
+	AccountID  domain.AccountID
+	CustomerID domain.CustomerID
 	Currency   string
 }
 
 func (c OpenAccountCommand) CommandType() command.CommandType { return CmdOpenAccount }
 
 type DepositMoneyCommand struct {
-	AccountID string
+	AccountID domain.AccountID
 	Amount    int64
 	Currency  string
 }
@@ -27,7 +30,7 @@ type DepositMoneyCommand struct {
 func (c DepositMoneyCommand) CommandType() command.CommandType { return CmdDepositMoney }
 
 type WithdrawMoneyCommand struct {
-	AccountID string
+	AccountID domain.AccountID
 	Amount    int64
 	Currency  string
 }
@@ -35,13 +38,13 @@ type WithdrawMoneyCommand struct {
 func (c WithdrawMoneyCommand) CommandType() command.CommandType { return CmdWithdrawMoney }
 
 type ActivateAccountCommand struct {
-	AccountID string
+	AccountID domain.AccountID
 }
 
 func (c ActivateAccountCommand) CommandType() command.CommandType { return CmdActivateAccount }
 
 type FreezeAccountCommand struct {
-	AccountID string
+	AccountID domain.AccountID
 	Reason    string
 }
 

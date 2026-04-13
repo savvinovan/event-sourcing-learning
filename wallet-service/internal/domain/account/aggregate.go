@@ -10,17 +10,18 @@ import (
 type Account struct {
 	aggregate.Root
 
-	customerID string
+	customerID CustomerID
 	status     AccountStatus
 	balance    int64  // in minor units (e.g. cents)
 	currency   string
 }
 
 // Getters — read-only access for query handlers and projections.
-func (a *Account) CustomerID() string    { return a.customerID }
-func (a *Account) Status() AccountStatus { return a.status }
-func (a *Account) Balance() int64        { return a.balance }
-func (a *Account) Currency() string      { return a.currency }
+func (a *Account) AccountID() AccountID     { return AccountID(a.ID()) }
+func (a *Account) CustomerID() CustomerID   { return a.customerID }
+func (a *Account) Status() AccountStatus    { return a.status }
+func (a *Account) Balance() int64           { return a.balance }
+func (a *Account) Currency() string         { return a.currency }
 
 // Restore rebuilds account state by replaying persisted events.
 // Called by command and query handlers before executing any operation.
@@ -31,12 +32,12 @@ func (a *Account) Restore(events []event.DomainEvent) {
 // --- Commands ---
 
 // Open creates a new account for a customer in Pending status (awaiting KYC).
-func (a *Account) Open(id, customerID, currency string) error {
+func (a *Account) Open(id AccountID, customerID CustomerID, currency string) error {
 	if a.ID() != "" {
 		return ErrAccountAlreadyExists
 	}
 	a.applyAndRecord(AccountOpened{
-		Base:       event.NewBase(id, AggregateType, EventTypeAccountOpened, a.Version()+1),
+		Base:       event.NewBase(string(id), AggregateType, EventTypeAccountOpened, a.Version()+1),
 		CustomerID: customerID,
 		Currency:   currency,
 	})

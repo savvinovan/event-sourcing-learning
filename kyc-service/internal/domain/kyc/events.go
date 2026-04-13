@@ -13,7 +13,7 @@ const (
 // KYCSubmitted is raised when a customer submits identity documents for verification.
 type KYCSubmitted struct {
 	event.Base
-	CustomerID string
+	CustomerID CustomerID
 }
 
 // KYCVerified is raised when an operator approves the KYC verification.

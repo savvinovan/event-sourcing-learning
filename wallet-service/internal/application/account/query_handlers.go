@@ -18,7 +18,7 @@ func NewGetBalanceHandler(s eventstore.EventStore) *GetBalanceHandler {
 }
 
 func (h *GetBalanceHandler) Handle(ctx context.Context, q GetBalanceQuery) (BalanceResult, error) {
-	events, err := h.store.Load(ctx, q.AccountID)
+	events, err := h.store.Load(ctx, string(q.AccountID))
 	if err != nil {
 		return BalanceResult{}, fmt.Errorf("get balance: load: %w", err)
 	}
@@ -29,7 +29,7 @@ func (h *GetBalanceHandler) Handle(ctx context.Context, q GetBalanceQuery) (Bala
 	agg.Restore(events)
 
 	return BalanceResult{
-		AccountID:  agg.ID(),
+		AccountID:  agg.AccountID(),
 		CustomerID: agg.CustomerID(),
 		Balance:    agg.Balance(),
 		Currency:   agg.Currency(),
@@ -45,7 +45,7 @@ func NewGetTransactionsHandler(s eventstore.EventStore) *GetTransactionsHandler 
 }
 
 func (h *GetTransactionsHandler) Handle(ctx context.Context, q GetTransactionsQuery) ([]TransactionRecord, error) {
-	events, err := h.store.Load(ctx, q.AccountID)
+	events, err := h.store.Load(ctx, string(q.AccountID))
 	if err != nil {
 		return nil, fmt.Errorf("get transactions: load: %w", err)
 	}

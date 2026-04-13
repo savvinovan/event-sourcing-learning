@@ -35,7 +35,7 @@ func (h *KYCHandler) Submit(w http.ResponseWriter, r *http.Request) {
 	verificationID := domain.NewVerificationID()
 	cmd := appkyc.SubmitKYCCommand{
 		VerificationID: verificationID,
-		CustomerID:     req.CustomerID,
+		CustomerID:     domain.CustomerID(req.CustomerID),
 	}
 	if err := h.commands.Dispatch(r.Context(), cmd); err != nil {
 		h.handleError(w, err)
@@ -44,12 +44,12 @@ func (h *KYCHandler) Submit(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(map[string]string{"verification_id": verificationID})
+	_ = json.NewEncoder(w).Encode(map[string]string{"verification_id": string(verificationID)})
 }
 
 // POST /kyc/{id}/approve
 func (h *KYCHandler) Approve(w http.ResponseWriter, r *http.Request) {
-	verificationID := chi.URLParam(r, "id")
+	verificationID := domain.VerificationID(chi.URLParam(r, "id"))
 
 	cmd := appkyc.ApproveKYCCommand{VerificationID: verificationID}
 	if err := h.commands.Dispatch(r.Context(), cmd); err != nil {
@@ -62,7 +62,7 @@ func (h *KYCHandler) Approve(w http.ResponseWriter, r *http.Request) {
 
 // POST /kyc/{id}/reject
 func (h *KYCHandler) Reject(w http.ResponseWriter, r *http.Request) {
-	verificationID := chi.URLParam(r, "id")
+	verificationID := domain.VerificationID(chi.URLParam(r, "id"))
 
 	var req RejectKYCRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -84,7 +84,7 @@ func (h *KYCHandler) Reject(w http.ResponseWriter, r *http.Request) {
 
 // GET /kyc/{id}
 func (h *KYCHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
-	verificationID := chi.URLParam(r, "id")
+	verificationID := domain.VerificationID(chi.URLParam(r, "id"))
 
 	result, err := h.queries.Ask(r.Context(), appkyc.GetKYCStatusQuery{VerificationID: verificationID})
 	if err != nil {
@@ -100,8 +100,8 @@ func (h *KYCHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := KYCStatusResponse{
-		VerificationID: status.VerificationID,
-		CustomerID:     status.CustomerID,
+		VerificationID: string(status.VerificationID),
+		CustomerID:     string(status.CustomerID),
 		Status:         status.Status,
 		Reason:         status.Reason,
 	}

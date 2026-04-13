@@ -6,17 +6,17 @@ const AggregateType = "Account"
 
 // Domain event type string constants — used for deserialization and type switches.
 const (
-	EventTypeAccountOpened  = "AccountOpened"
-	EventTypeMoneyDeposited = "MoneyDeposited"
-	EventTypeMoneyWithdrawn = "MoneyWithdrawn"
+	EventTypeAccountOpened    = "AccountOpened"
+	EventTypeMoneyDeposited   = "MoneyDeposited"
+	EventTypeMoneyWithdrawn   = "MoneyWithdrawn"
 	EventTypeAccountActivated = "AccountActivated"
-	EventTypeAccountFrozen  = "AccountFrozen"
+	EventTypeAccountFrozen    = "AccountFrozen"
 )
 
 // AccountOpened is recorded when a new account is created for a customer.
 type AccountOpened struct {
 	event.Base
-	CustomerID string
+	CustomerID CustomerID
 	Currency   string
 }
 

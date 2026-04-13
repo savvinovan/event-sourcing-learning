@@ -10,15 +10,16 @@ import (
 type KYCVerification struct {
 	aggregate.Root
 
-	customerID string
+	customerID CustomerID
 	status     KYCStatus
 	reason     string // set on rejection
 }
 
 // Getters — read-only access for query handlers and projections.
-func (k *KYCVerification) CustomerID() string { return k.customerID }
-func (k *KYCVerification) Status() KYCStatus  { return k.status }
-func (k *KYCVerification) Reason() string     { return k.reason }
+func (k *KYCVerification) VerificationID() VerificationID { return VerificationID(k.ID()) }
+func (k *KYCVerification) CustomerID() CustomerID         { return k.customerID }
+func (k *KYCVerification) Status() KYCStatus              { return k.status }
+func (k *KYCVerification) Reason() string                 { return k.reason }
 
 // Restore rebuilds verification state by replaying persisted events.
 func (k *KYCVerification) Restore(events []event.DomainEvent) {
@@ -28,12 +29,12 @@ func (k *KYCVerification) Restore(events []event.DomainEvent) {
 // --- Commands ---
 
 // Submit creates a new KYC verification for a customer.
-func (k *KYCVerification) Submit(id, customerID string) error {
+func (k *KYCVerification) Submit(id VerificationID, customerID CustomerID) error {
 	if k.ID() != "" {
 		return ErrVerificationAlreadyExists
 	}
 	k.applyAndRecord(KYCSubmitted{
-		Base:       event.NewBase(id, AggregateType, EventTypeKYCSubmitted, k.Version()+1),
+		Base:       event.NewBase(string(id), AggregateType, EventTypeKYCSubmitted, k.Version()+1),
 		CustomerID: customerID,
 	})
 	return nil

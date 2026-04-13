@@ -1,6 +1,9 @@
 package kyc
 
-import "github.com/savvinovan/kyc-service/internal/application/command"
+import (
+	"github.com/savvinovan/kyc-service/internal/application/command"
+	domain "github.com/savvinovan/kyc-service/internal/domain/kyc"
+)
 
 const (
 	CmdSubmitKYC  command.CommandType = "SubmitKYC"
@@ -9,20 +12,20 @@ const (
 )
 
 type SubmitKYCCommand struct {
-	VerificationID string
-	CustomerID     string
+	VerificationID domain.VerificationID
+	CustomerID     domain.CustomerID
 }
 
 func (c SubmitKYCCommand) CommandType() command.CommandType { return CmdSubmitKYC }
 
 type ApproveKYCCommand struct {
-	VerificationID string
+	VerificationID domain.VerificationID
 }
 
 func (c ApproveKYCCommand) CommandType() command.CommandType { return CmdApproveKYC }
 
 type RejectKYCCommand struct {
-	VerificationID string
+	VerificationID domain.VerificationID
 	Reason         string
 }
 
