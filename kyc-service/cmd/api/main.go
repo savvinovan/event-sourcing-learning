@@ -10,9 +10,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/fx"
 
-	"github.com/savvinovan/event-sourcing-learning/config"
-	httpinterface "github.com/savvinovan/event-sourcing-learning/internal/interfaces/http"
-	"github.com/savvinovan/event-sourcing-learning/internal/interfaces/http/handler"
+	"github.com/savvinovan/kyc-service/config"
+	httpinterface "github.com/savvinovan/kyc-service/internal/interfaces/http"
+	"github.com/savvinovan/kyc-service/internal/interfaces/http/handler"
+
+	// contracts are used for cross-service event schemas (Kafka integration — see PLAN-006)
+	_ "github.com/savvinovan/event-sourcing-learning/contracts/events"
 )
 
 func main() {

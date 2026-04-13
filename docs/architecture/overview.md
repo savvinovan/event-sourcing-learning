@@ -4,6 +4,14 @@
 
 This project is a learning implementation of **Domain-Driven Design (DDD)** combined with **CQRS** (Command Query Responsibility Segregation) and **Event Sourcing** in Go.
 
+The repository is a **monorepo** with three Go modules managed via `go.work`:
+
+| Module | Path | Role |
+|--------|------|------|
+| `github.com/savvinovan/wallet-service` | `wallet-service/` | Wallet bounded context |
+| `github.com/savvinovan/kyc-service` | `kyc-service/` | KYC bounded context |
+| `github.com/savvinovan/event-sourcing-learning/contracts` | `contracts/` | Shared event schemas |
+
 The architecture is organized into four layers with a strict dependency rule: outer layers depend on inner layers, never the reverse.
 
 ## Layer Diagram

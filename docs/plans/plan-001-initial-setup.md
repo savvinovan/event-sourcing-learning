@@ -19,7 +19,7 @@ establish docs-as-code documentation structure, and push to GitHub.
 
 ## Tasks
 
-- [x] Initialize Go module `github.com/savvinovan/event-sourcing-learning`
+- [x] Initialize Go module at repo root _(restructured into `wallet-service/`, `kyc-service/`, `contracts/` modules in [PLAN-002](plan-002-monorepo-restructure.md))_
 - [x] Add dependencies: `chi`, `uber/fx`, `cleanenv`
 - [x] Domain layer — `aggregate.Root`, `event.DomainEvent`, `event.Base`
 - [x] Application layer — `command.CommandType`, `command.Bus`, `command.Handler`, `query.Bus`, `query.Handler` interfaces

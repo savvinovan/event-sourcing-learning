@@ -6,7 +6,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/savvinovan/event-sourcing-learning/internal/interfaces/http/handler"
+	"github.com/savvinovan/wallet-service/internal/interfaces/http/handler"
 )
 
 func NewRouter(health *handler.HealthHandler) *chi.Mux {
