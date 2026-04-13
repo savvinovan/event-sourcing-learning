@@ -9,7 +9,7 @@ import (
 	"github.com/savvinovan/wallet-service/internal/interfaces/http/handler"
 )
 
-func NewRouter(health *handler.HealthHandler) *chi.Mux {
+func NewRouter(health *handler.HealthHandler, account *handler.AccountHandler) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -17,6 +17,14 @@ func NewRouter(health *handler.HealthHandler) *chi.Mux {
 	r.Use(middleware.Recoverer)
 
 	r.Get("/health", health.Handle)
+
+	r.Route("/accounts", func(r chi.Router) {
+		r.Post("/", account.OpenAccount)
+		r.Post("/{id}/deposit", account.Deposit)
+		r.Post("/{id}/withdraw", account.Withdraw)
+		r.Get("/{id}/balance", account.GetBalance)
+		r.Get("/{id}/transactions", account.GetTransactions)
+	})
 
 	return r
 }

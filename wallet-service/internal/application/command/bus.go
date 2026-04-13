@@ -17,9 +17,8 @@ type CommandHandler[C Command] interface {
 	Handle(ctx context.Context, cmd C) error
 }
 
-// Bus dispatches commands to their registered handlers.
-// Register accepts any CommandHandler[C] implementation.
+// Bus dispatches commands to registered handlers.
+// Use the package-level MustRegister function to register handlers at startup.
 type Bus interface {
-	Register(commandType CommandType, handler any)
 	Dispatch(ctx context.Context, cmd Command) error
 }

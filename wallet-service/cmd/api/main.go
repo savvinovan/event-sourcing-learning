@@ -10,10 +10,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/fx"
 
+	appaccount "github.com/savvinovan/wallet-service/internal/application/account"
+	"github.com/savvinovan/wallet-service/internal/application/command"
+	"github.com/savvinovan/wallet-service/internal/application/query"
 	"github.com/savvinovan/wallet-service/config"
+	"github.com/savvinovan/wallet-service/internal/infrastructure/eventstore"
 	httpinterface "github.com/savvinovan/wallet-service/internal/interfaces/http"
 	"github.com/savvinovan/wallet-service/internal/interfaces/http/handler"
-
 )
 
 func main() {
@@ -21,12 +24,65 @@ func main() {
 		fx.Provide(
 			config.Load,
 			newLogger,
+
+			// Infrastructure
+			newEventStore,
+
+			// Application — command handlers
+			appaccount.NewOpenAccountHandler,
+			appaccount.NewDepositMoneyHandler,
+			appaccount.NewWithdrawMoneyHandler,
+			appaccount.NewActivateAccountHandler,
+			appaccount.NewFreezeAccountHandler,
+
+			// Application — query handlers
+			appaccount.NewGetBalanceHandler,
+			appaccount.NewGetTransactionsHandler,
+
+			// Buses
+			newCommandBus,
+			newQueryBus,
+
+			// HTTP
 			handler.NewHealthHandler,
+			handler.NewAccountHandler,
 			httpinterface.NewRouter,
 			newHTTPServer,
 		),
 		fx.Invoke(startHTTPServer),
 	).Run()
+}
+
+// newCommandBus wires all command handlers into the in-memory command bus.
+func newCommandBus(
+	openAccount *appaccount.OpenAccountHandler,
+	deposit *appaccount.DepositMoneyHandler,
+	withdraw *appaccount.WithdrawMoneyHandler,
+	activate *appaccount.ActivateAccountHandler,
+	freeze *appaccount.FreezeAccountHandler,
+) command.Bus {
+	bus := command.NewInMemoryBus()
+	command.MustRegister(bus, openAccount)
+	command.MustRegister(bus, deposit)
+	command.MustRegister(bus, withdraw)
+	command.MustRegister(bus, activate)
+	command.MustRegister(bus, freeze)
+	return bus
+}
+
+// newQueryBus wires all query handlers into the in-memory query bus.
+func newQueryBus(
+	getBalance *appaccount.GetBalanceHandler,
+	getTransactions *appaccount.GetTransactionsHandler,
+) query.Bus {
+	bus := query.NewInMemoryBus()
+	query.MustRegister(bus, getBalance)
+	query.MustRegister(bus, getTransactions)
+	return bus
+}
+
+func newEventStore() eventstore.EventStore {
+	return eventstore.NewInMemory()
 }
 
 func newLogger(cfg *config.Config) *slog.Logger {

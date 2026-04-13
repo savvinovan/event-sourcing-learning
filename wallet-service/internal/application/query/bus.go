@@ -17,10 +17,9 @@ type QueryHandler[Q Query, R any] interface {
 	Handle(ctx context.Context, q Q) (R, error)
 }
 
-// Bus dispatches queries to their registered handlers.
-// Register accepts any QueryHandler[Q, R] implementation.
+// Bus dispatches queries to registered handlers.
+// Use the package-level MustRegister function to register handlers at startup.
 // Ask returns any; callers type-assert to the expected result type.
 type Bus interface {
-	Register(queryType QueryType, handler any)
 	Ask(ctx context.Context, q Query) (any, error)
 }
