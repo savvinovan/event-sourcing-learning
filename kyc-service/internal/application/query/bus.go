@@ -17,6 +17,5 @@ type QueryHandler[Q Query, R any] interface {
 
 // Bus dispatches queries to their registered handlers.
 type Bus interface {
-	Register(queryType QueryType, handler any)
 	Ask(ctx context.Context, q Query) (any, error)
 }

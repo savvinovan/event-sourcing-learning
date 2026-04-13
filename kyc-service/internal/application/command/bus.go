@@ -17,6 +17,5 @@ type CommandHandler[C Command] interface {
 
 // Bus dispatches commands to their registered handlers.
 type Bus interface {
-	Register(commandType CommandType, handler any)
 	Dispatch(ctx context.Context, cmd Command) error
 }

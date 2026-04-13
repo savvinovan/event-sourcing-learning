@@ -11,9 +11,12 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/savvinovan/kyc-service/config"
+	appkyc "github.com/savvinovan/kyc-service/internal/application/kyc"
+	"github.com/savvinovan/kyc-service/internal/application/command"
+	"github.com/savvinovan/kyc-service/internal/application/query"
+	"github.com/savvinovan/kyc-service/internal/infrastructure/eventstore"
 	httpinterface "github.com/savvinovan/kyc-service/internal/interfaces/http"
 	"github.com/savvinovan/kyc-service/internal/interfaces/http/handler"
-
 )
 
 func main() {
@@ -21,12 +24,56 @@ func main() {
 		fx.Provide(
 			config.Load,
 			newLogger,
+
+			// Infrastructure
+			newEventStore,
+
+			// Application — command handlers
+			appkyc.NewSubmitKYCHandler,
+			appkyc.NewApproveKYCHandler,
+			appkyc.NewRejectKYCHandler,
+
+			// Application — query handlers
+			appkyc.NewGetKYCStatusHandler,
+
+			// Buses
+			newCommandBus,
+			newQueryBus,
+
+			// HTTP
 			handler.NewHealthHandler,
+			handler.NewKYCHandler,
 			httpinterface.NewRouter,
 			newHTTPServer,
 		),
 		fx.Invoke(startHTTPServer),
 	).Run()
+}
+
+// newCommandBus wires all command handlers into the in-memory command bus.
+func newCommandBus(
+	submit *appkyc.SubmitKYCHandler,
+	approve *appkyc.ApproveKYCHandler,
+	reject *appkyc.RejectKYCHandler,
+) command.Bus {
+	bus := command.NewInMemoryBus()
+	command.MustRegister(bus, submit)
+	command.MustRegister(bus, approve)
+	command.MustRegister(bus, reject)
+	return bus
+}
+
+// newQueryBus wires all query handlers into the in-memory query bus.
+func newQueryBus(
+	getStatus *appkyc.GetKYCStatusHandler,
+) query.Bus {
+	bus := query.NewInMemoryBus()
+	query.MustRegister(bus, getStatus)
+	return bus
+}
+
+func newEventStore() eventstore.EventStore {
+	return eventstore.NewInMemory()
 }
 
 func newLogger(cfg *config.Config) *slog.Logger {
