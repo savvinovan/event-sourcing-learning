@@ -2,7 +2,7 @@
 
 | | |
 |-|-|
-| **Status** | Not Started |
+| **Status** | DONE |
 | **Date** | 2026-04-13 |
 | **Depends on** | [PLAN-002](plan-002-monorepo-restructure.md) |
 
@@ -14,23 +14,20 @@ This gives compile-time safety when either service changes an event schema.
 
 ## Tasks
 
-- [ ] Define KYC events in `contracts/events/kyc.go`
-  - `KYCSubmitted`
-  - `KYCVerified`
-  - `KYCRejected`
-- [ ] Define Wallet events in `contracts/events/wallet.go`
-  - `WalletActivated`
-  - `WalletFrozen`
-- [ ] Add docs: `docs/contracts/README.md` — explain why contracts module exists and what belongs here
-- [ ] Add docs: `docs/contracts/events.md` — document each event schema
+- [x] Define KYC events in `contracts/events/kyc.go` — `KYCSubmitted`, `KYCVerified`, `KYCRejected`
+- [x] Define Wallet events in `contracts/events/wallet.go` — `WalletActivated`, `WalletFrozen`
+- [x] Add Kafka topic constants in `contracts/topics/topics.go`
+- [x] Add docs: `docs/contracts/README.md`
+- [x] Add docs: `docs/contracts/events.md` — every event struct with field descriptions
+- [x] Add messaging stubs in both services referencing all contract fields (compile-time safety)
 
 ## Acceptance Criteria
 
-- [ ] `contracts/` has zero external dependencies (`go.mod` shows only stdlib)
-- [ ] All KYC event structs compile and are importable from both services
-- [ ] All Wallet event structs compile and are importable from both services
-- [ ] Changing a field in any event struct causes a compile error in the service that uses it
-- [ ] Docs cover every exported event struct with field descriptions
+- [x] `contracts/` has zero external dependencies (`go.mod` shows only stdlib)
+- [x] All KYC event structs compile and are importable from both services
+- [x] All Wallet event structs compile and are importable from both services
+- [x] Changing a field in any event struct causes a compile error in the service that uses it
+- [x] Docs cover every exported event struct with field descriptions
 
 ## Rules for this module
 
