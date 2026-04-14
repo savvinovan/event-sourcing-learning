@@ -2,7 +2,7 @@
 
 | | |
 |-|-|
-| **Status** | Not Started |
+| **Status** | DONE |
 | **Date** | 2026-04-13 |
 | **Depends on** | [PLAN-004](plan-004-wallet-service.md), [PLAN-005](plan-005-kyc-service.md) |
 
@@ -42,10 +42,18 @@ sequenceDiagram
 
 ## Tasks
 
-- [ ] Add Kafka to local dev setup (Docker Compose)
-- [ ] `kyc-service`: publisher — on `KYCVerified` / `KYCRejected` publish to Kafka topic
-- [ ] `wallet-service`: subscriber — consume KYC events, dispatch `ActivateAccount` / `FreezeAccount` commands
-- [ ] Define topic names as constants in `contracts/`
-- [ ] Handle at-least-once delivery (idempotent command handlers)
-- [ ] `docker-compose.yml` at repo root — runs Kafka + both services
-- [ ] Update docs: integration flow diagram
+- [x] Add Kafka to local dev setup (Docker Compose — KRaft, dual-listener)
+- [x] `kyc-service`: publisher — on `KYCVerified` / `KYCRejected` publish to Kafka topic
+- [x] `wallet-service`: subscriber — consume KYC events, dispatch `ActivateAccount` / `FreezeAccount` commands
+- [x] Define topic names as constants in `contracts/`
+- [x] Handle at-least-once delivery (idempotent command handlers, `ErrNotPending` = skip)
+- [x] `docker-compose.yml` at repo root — runs Kafka + both services
+- [x] Update docs: `docs/infrastructure/kafka.md`
+
+## Implementation Notes
+
+See [`docs/infrastructure/kafka.md`](../infrastructure/kafka.md) for the complete architecture.
+
+### Dual-write trade-off
+
+The ApproveKYC / RejectKYC command handlers append to the event store **then** publish to Kafka. If Kafka publish fails after a successful event store append, the domain state is committed but the wallet service won't be notified. This is acceptable for a learning project. Production fix: **outbox pattern** — write the integration event to a DB table in the same transaction, then relay it to Kafka asynchronously.
