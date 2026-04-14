@@ -3,8 +3,9 @@ package config
 import "github.com/ilyakaznacheev/cleanenv"
 
 type Config struct {
-	HTTP HTTPConfig `env-prefix:"HTTP_"`
-	Log  LogConfig  `env-prefix:"LOG_"`
+	HTTP  HTTPConfig  `env-prefix:"HTTP_"`
+	Log   LogConfig   `env-prefix:"LOG_"`
+	Kafka KafkaConfig `env-prefix:"KAFKA_"`
 }
 
 type HTTPConfig struct {
@@ -14,6 +15,10 @@ type HTTPConfig struct {
 
 type LogConfig struct {
 	Level string `env:"LEVEL" env-default:"info"`
+}
+
+type KafkaConfig struct {
+	Brokers string `env:"BROKERS" env-default:"192.168.1.61:9092"`
 }
 
 func Load() (*Config, error) {

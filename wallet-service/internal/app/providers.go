@@ -18,6 +18,7 @@ import (
 	"github.com/savvinovan/wallet-service/config"
 	"github.com/savvinovan/wallet-service/db"
 	"github.com/savvinovan/wallet-service/internal/infrastructure/eventstore"
+	"github.com/savvinovan/wallet-service/internal/infrastructure/kafka"
 	"github.com/savvinovan/wallet-service/internal/infrastructure/readmodel"
 )
 
@@ -102,6 +103,21 @@ func startHTTPServer(lc fx.Lifecycle, srv *http.Server, log *slog.Logger) {
 		OnStop: func(ctx context.Context) error {
 			log.Info("stopping HTTP server")
 			return srv.Shutdown(ctx)
+		},
+	})
+}
+
+func startKYCConsumer(lc fx.Lifecycle, consumer *kafka.KYCEventConsumer, log *slog.Logger) {
+	ctx, cancel := context.WithCancel(context.Background())
+	lc.Append(fx.Hook{
+		OnStart: func(_ context.Context) error {
+			go consumer.Run(ctx)
+			return nil
+		},
+		OnStop: func(_ context.Context) error {
+			log.Info("stopping KYC event consumer")
+			cancel()
+			return consumer.Close()
 		},
 	})
 }

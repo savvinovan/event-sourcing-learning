@@ -7,6 +7,7 @@ import (
 	appaccount "github.com/savvinovan/wallet-service/internal/application/account"
 	"github.com/savvinovan/wallet-service/internal/application/command"
 	"github.com/savvinovan/wallet-service/internal/application/query"
+	"github.com/savvinovan/wallet-service/internal/infrastructure/kafka"
 	"github.com/savvinovan/wallet-service/internal/interfaces/http/handler"
 	httpinterface "github.com/savvinovan/wallet-service/internal/interfaces/http"
 )
@@ -39,6 +40,9 @@ func New() *fx.App {
 			newCommandBus,
 			newQueryBus,
 
+			// Kafka consumer
+			kafka.NewKYCEventConsumer,
+
 			// HTTP
 			handler.NewHealthHandler,
 			handler.NewAccountHandler,
@@ -47,6 +51,7 @@ func New() *fx.App {
 		),
 		fx.Invoke(runMigrations),
 		fx.Invoke(startHTTPServer),
+		fx.Invoke(startKYCConsumer),
 	)
 }
 

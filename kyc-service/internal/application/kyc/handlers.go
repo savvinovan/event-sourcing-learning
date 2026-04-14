@@ -15,13 +15,31 @@ func expectedVersion(agg *domain.KYCVerification) int {
 
 // --- Command Handlers ---
 
-type SubmitKYCHandler struct{ store eventstore.EventStore }
-type ApproveKYCHandler struct{ store eventstore.EventStore }
-type RejectKYCHandler struct{ store eventstore.EventStore }
+type SubmitKYCHandler struct {
+	store eventstore.EventStore
+}
 
-func NewSubmitKYCHandler(s eventstore.EventStore) *SubmitKYCHandler   { return &SubmitKYCHandler{s} }
-func NewApproveKYCHandler(s eventstore.EventStore) *ApproveKYCHandler { return &ApproveKYCHandler{s} }
-func NewRejectKYCHandler(s eventstore.EventStore) *RejectKYCHandler   { return &RejectKYCHandler{s} }
+type ApproveKYCHandler struct {
+	store     eventstore.EventStore
+	publisher EventPublisher
+}
+
+type RejectKYCHandler struct {
+	store     eventstore.EventStore
+	publisher EventPublisher
+}
+
+func NewSubmitKYCHandler(s eventstore.EventStore) *SubmitKYCHandler {
+	return &SubmitKYCHandler{store: s}
+}
+
+func NewApproveKYCHandler(s eventstore.EventStore, p EventPublisher) *ApproveKYCHandler {
+	return &ApproveKYCHandler{store: s, publisher: p}
+}
+
+func NewRejectKYCHandler(s eventstore.EventStore, p EventPublisher) *RejectKYCHandler {
+	return &RejectKYCHandler{store: s, publisher: p}
+}
 
 func (h *SubmitKYCHandler) Handle(ctx context.Context, cmd SubmitKYCCommand) error {
 	events, err := h.store.Load(ctx, string(cmd.VerificationID))
@@ -42,15 +60,15 @@ func (h *SubmitKYCHandler) Handle(ctx context.Context, cmd SubmitKYCCommand) err
 }
 
 func (h *ApproveKYCHandler) Handle(ctx context.Context, cmd ApproveKYCCommand) error {
-	events, err := h.store.Load(ctx, string(cmd.VerificationID))
+	evts, err := h.store.Load(ctx, string(cmd.VerificationID))
 	if err != nil {
 		return fmt.Errorf("approve kyc: load: %w", err)
 	}
-	if len(events) == 0 {
+	if len(evts) == 0 {
 		return domain.ErrVerificationNotFound
 	}
 	agg := &domain.KYCVerification{}
-	agg.Restore(events)
+	agg.Restore(evts)
 
 	if err := agg.Approve(); err != nil {
 		return err
@@ -59,19 +77,26 @@ func (h *ApproveKYCHandler) Handle(ctx context.Context, cmd ApproveKYCCommand) e
 		return fmt.Errorf("approve kyc: append: %w", err)
 	}
 	agg.ClearChanges()
+
+	// Publish integration event. Domain state is already committed at this point —
+	// if Kafka publish fails, the wallet service won't be notified (dual-write hazard).
+	// Production fix: use outbox pattern for guaranteed delivery.
+	if err := h.publisher.PublishKYCVerified(ctx, agg.CustomerID()); err != nil {
+		return fmt.Errorf("approve kyc: publish: %w", err)
+	}
 	return nil
 }
 
 func (h *RejectKYCHandler) Handle(ctx context.Context, cmd RejectKYCCommand) error {
-	events, err := h.store.Load(ctx, string(cmd.VerificationID))
+	evts, err := h.store.Load(ctx, string(cmd.VerificationID))
 	if err != nil {
 		return fmt.Errorf("reject kyc: load: %w", err)
 	}
-	if len(events) == 0 {
+	if len(evts) == 0 {
 		return domain.ErrVerificationNotFound
 	}
 	agg := &domain.KYCVerification{}
-	agg.Restore(events)
+	agg.Restore(evts)
 
 	if err := agg.Reject(cmd.Reason); err != nil {
 		return err
@@ -80,5 +105,10 @@ func (h *RejectKYCHandler) Handle(ctx context.Context, cmd RejectKYCCommand) err
 		return fmt.Errorf("reject kyc: append: %w", err)
 	}
 	agg.ClearChanges()
+
+	// See comment in ApproveKYCHandler.Handle about dual-write hazard.
+	if err := h.publisher.PublishKYCRejected(ctx, agg.CustomerID(), cmd.Reason); err != nil {
+		return fmt.Errorf("reject kyc: publish: %w", err)
+	}
 	return nil
 }

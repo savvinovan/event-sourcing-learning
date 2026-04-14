@@ -1,36 +1,78 @@
-// Package messaging contains Kafka publisher stubs for cross-service events.
-// Full implementation: see PLAN-006 (event-driven integration).
 package messaging
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/segmentio/kafka-go"
+
 	"github.com/savvinovan/event-sourcing-learning/contracts/events"
 	"github.com/savvinovan/event-sourcing-learning/contracts/topics"
+	appkyc "github.com/savvinovan/kyc-service/internal/application/kyc"
+	domain "github.com/savvinovan/kyc-service/internal/domain/kyc"
 )
 
-// publishKYCVerified publishes a KYCVerified event to Kafka.
-// Full wiring: PLAN-006.
-func publishKYCVerified(e events.KYCVerified) (topic string) {
-	// Fields used explicitly — compile error if contracts schema changes:
-	_ = e.CustomerID
-	_ = e.VerifiedAt
-	return topics.KYCVerified
+// compile-time check
+var _ appkyc.EventPublisher = (*KafkaPublisher)(nil)
+
+// KafkaPublisher publishes KYC integration events to Kafka topics.
+type KafkaPublisher struct {
+	writer *kafka.Writer
 }
 
-// publishKYCRejected publishes a KYCRejected event to Kafka.
-// Full wiring: PLAN-006.
-func publishKYCRejected(e events.KYCRejected) (topic string) {
-	// Fields used explicitly — compile error if contracts schema changes:
-	_ = e.CustomerID
-	_ = e.Reason
-	_ = e.RejectedAt
-	return topics.KYCRejected
+// NewKafkaPublisher creates a publisher that writes to the given comma-separated broker list.
+func NewKafkaPublisher(brokers string) *KafkaPublisher {
+	addrs := strings.Split(brokers, ",")
+	return &KafkaPublisher{
+		writer: &kafka.Writer{
+			Addr:         kafka.TCP(addrs...),
+			Balancer:     &kafka.LeastBytes{},
+			WriteTimeout: 10 * time.Second,
+			ReadTimeout:  10 * time.Second,
+		},
+	}
 }
 
-// publishKYCSubmitted publishes a KYCSubmitted event to Kafka.
-// Full wiring: PLAN-006.
-func publishKYCSubmitted(e events.KYCSubmitted) (topic string) {
-	// Fields used explicitly — compile error if contracts schema changes:
-	_ = e.CustomerID
-	_ = e.SubmittedAt
-	return topics.KYCSubmitted
+func (p *KafkaPublisher) PublishKYCVerified(ctx context.Context, customerID domain.CustomerID) error {
+	evt := events.KYCVerified{
+		CustomerID: string(customerID),
+		VerifiedAt: time.Now().UTC(),
+	}
+	payload, err := json.Marshal(evt)
+	if err != nil {
+		return fmt.Errorf("marshal KYCVerified: %w", err)
+	}
+	if err := p.writer.WriteMessages(ctx, kafka.Message{
+		Topic: topics.KYCVerified,
+		Value: payload,
+	}); err != nil {
+		return fmt.Errorf("publish KYCVerified: %w", err)
+	}
+	return nil
+}
+
+func (p *KafkaPublisher) PublishKYCRejected(ctx context.Context, customerID domain.CustomerID, reason string) error {
+	evt := events.KYCRejected{
+		CustomerID: string(customerID),
+		Reason:     reason,
+		RejectedAt: time.Now().UTC(),
+	}
+	payload, err := json.Marshal(evt)
+	if err != nil {
+		return fmt.Errorf("marshal KYCRejected: %w", err)
+	}
+	if err := p.writer.WriteMessages(ctx, kafka.Message{
+		Topic: topics.KYCRejected,
+		Value: payload,
+	}); err != nil {
+		return fmt.Errorf("publish KYCRejected: %w", err)
+	}
+	return nil
+}
+
+func (p *KafkaPublisher) Close() error {
+	return p.writer.Close()
 }

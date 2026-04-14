@@ -3,9 +3,10 @@ package config
 import "github.com/ilyakaznacheev/cleanenv"
 
 type Config struct {
-	HTTP HTTPConfig `env-prefix:"HTTP_"`
-	Log  LogConfig  `env-prefix:"LOG_"`
-	DB   DBConfig   `env-prefix:"DB_"`
+	HTTP  HTTPConfig  `env-prefix:"HTTP_"`
+	Log   LogConfig   `env-prefix:"LOG_"`
+	DB    DBConfig    `env-prefix:"DB_"`
+	Kafka KafkaConfig `env-prefix:"KAFKA_"`
 }
 
 type HTTPConfig struct {
@@ -18,7 +19,11 @@ type LogConfig struct {
 }
 
 type DBConfig struct {
-	DSN string `env:"DSN" env-default:"postgres://wallet:wallet@localhost:5432/wallet?sslmode=disable"`
+	DSN string `env:"DSN" env-default:"postgres://wallet:wallet@192.168.1.61:5434/wallet?sslmode=disable"`
+}
+
+type KafkaConfig struct {
+	Brokers string `env:"BROKERS" env-default:"192.168.1.61:9092"`
 }
 
 func Load() (*Config, error) {

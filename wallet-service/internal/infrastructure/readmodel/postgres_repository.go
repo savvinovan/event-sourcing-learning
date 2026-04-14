@@ -104,4 +104,24 @@ func (r *PostgresReadModelRepository) GetTransactions(ctx context.Context, accou
 	return records, rows.Err()
 }
 
+func (r *PostgresReadModelRepository) GetAccountIDsByCustomerID(ctx context.Context, customerID domain.CustomerID) ([]domain.AccountID, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT account_id::text FROM account_read_models WHERE customer_id = $1::uuid
+	`, string(customerID))
+	if err != nil {
+		return nil, fmt.Errorf("get accounts by customer: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []domain.AccountID
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("get accounts by customer: scan: %w", err)
+		}
+		ids = append(ids, domain.AccountID(id))
+	}
+	return ids, rows.Err()
+}
+
 var _ appaccount.AccountReadRepository = (*PostgresReadModelRepository)(nil)
