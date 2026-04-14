@@ -9,4 +9,5 @@ They are allowed to depend on the application layer but must not contain busines
 
 ## Contents
 
-- [HTTP API](http.md) — `internal/interfaces/http/`
+- [Wallet HTTP API](http.md) — `wallet-service/internal/interfaces/http/`
+- [KYC HTTP API](kyc-http.md) — `kyc-service/internal/interfaces/http/`
