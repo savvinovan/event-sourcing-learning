@@ -1,10 +1,6 @@
 package account
 
-import (
-	"github.com/shopspring/decimal"
-
-	"github.com/savvinovan/wallet-service/internal/domain/event"
-)
+import "github.com/savvinovan/wallet-service/internal/domain/event"
 
 const AggregateType = "Account"
 
@@ -26,15 +22,13 @@ type AccountOpened struct {
 // MoneyDeposited is recorded when funds are credited to an account.
 type MoneyDeposited struct {
 	event.Base
-	Amount   decimal.Decimal
-	Currency string
+	Amount Money
 }
 
 // MoneyWithdrawn is recorded when funds are debited from an account.
 type MoneyWithdrawn struct {
 	event.Base
-	Amount   decimal.Decimal
-	Currency string
+	Amount Money
 }
 
 // AccountActivated is recorded when KYC verification is approved.

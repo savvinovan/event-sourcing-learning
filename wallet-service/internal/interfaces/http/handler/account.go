@@ -58,10 +58,14 @@ func (h *AccountHandler) Deposit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	money, err := domain.NewMoney(req.Amount, req.Currency)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
 	cmd := appaccount.DepositMoneyCommand{
 		AccountID: accountID,
-		Amount:    req.Amount,
-		Currency:  req.Currency,
+		Amount:    money,
 	}
 	if err := h.commands.Dispatch(r.Context(), cmd); err != nil {
 		h.handleError(w, err)
@@ -81,10 +85,14 @@ func (h *AccountHandler) Withdraw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	money, err := domain.NewMoney(req.Amount, req.Currency)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
 	cmd := appaccount.WithdrawMoneyCommand{
 		AccountID: accountID,
-		Amount:    req.Amount,
-		Currency:  req.Currency,
+		Amount:    money,
 	}
 	if err := h.commands.Dispatch(r.Context(), cmd); err != nil {
 		h.handleError(w, err)
@@ -114,8 +122,8 @@ func (h *AccountHandler) GetBalance(w http.ResponseWriter, r *http.Request) {
 	resp := BalanceResponse{
 		AccountID:  string(balance.AccountID),
 		CustomerID: string(balance.CustomerID),
-		Balance:    balance.Balance,
-		Currency:   balance.Currency,
+		Balance:    balance.Balance.Amount,
+		Currency:   balance.Balance.Currency,
 		Status:     balance.Status,
 	}
 
@@ -144,8 +152,8 @@ func (h *AccountHandler) GetTransactions(w http.ResponseWriter, r *http.Request)
 	for i, rec := range records {
 		resp[i] = TransactionResponse{
 			Type:       rec.Type,
-			Amount:     rec.Amount,
-			Currency:   rec.Currency,
+			Amount:     rec.Amount.Amount,
+			Currency:   rec.Amount.Currency,
 			OccurredAt: rec.OccurredAt,
 		}
 	}

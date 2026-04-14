@@ -56,7 +56,7 @@ func (h *DepositMoneyHandler) Handle(ctx context.Context, cmd DepositMoneyComman
 	agg := &domain.Account{}
 	agg.Restore(events)
 
-	if err := agg.Deposit(cmd.Amount, cmd.Currency); err != nil {
+	if err := agg.Deposit(cmd.Amount); err != nil {
 		return err
 	}
 	if err := h.store.Append(ctx, string(cmd.AccountID), agg.Changes(), expectedVersion(agg)); err != nil {
@@ -77,7 +77,7 @@ func (h *WithdrawMoneyHandler) Handle(ctx context.Context, cmd WithdrawMoneyComm
 	agg := &domain.Account{}
 	agg.Restore(events)
 
-	if err := agg.Withdraw(cmd.Amount, cmd.Currency); err != nil {
+	if err := agg.Withdraw(cmd.Amount); err != nil {
 		return err
 	}
 	if err := h.store.Append(ctx, string(cmd.AccountID), agg.Changes(), expectedVersion(agg)); err != nil {

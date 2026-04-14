@@ -32,7 +32,6 @@ func (h *GetBalanceHandler) Handle(ctx context.Context, q GetBalanceQuery) (Bala
 		AccountID:  agg.AccountID(),
 		CustomerID: agg.CustomerID(),
 		Balance:    agg.Balance(),
-		Currency:   agg.Currency(),
 		Status:     agg.Status().String(),
 	}, nil
 }
@@ -69,14 +68,12 @@ func toTransactionRecord(e event.DomainEvent) (TransactionRecord, bool) {
 		return TransactionRecord{
 			Type:       "deposit",
 			Amount:     v.Amount,
-			Currency:   v.Currency,
 			OccurredAt: v.OccurredAt().Format(time.RFC3339),
 		}, true
 	case domain.MoneyWithdrawn:
 		return TransactionRecord{
 			Type:       "withdrawal",
 			Amount:     v.Amount,
-			Currency:   v.Currency,
 			OccurredAt: v.OccurredAt().Format(time.RFC3339),
 		}, true
 	default:
