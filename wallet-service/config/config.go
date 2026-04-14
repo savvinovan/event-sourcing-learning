@@ -5,6 +5,7 @@ import "github.com/ilyakaznacheev/cleanenv"
 type Config struct {
 	HTTP HTTPConfig `env-prefix:"HTTP_"`
 	Log  LogConfig  `env-prefix:"LOG_"`
+	DB   DBConfig   `env-prefix:"DB_"`
 }
 
 type HTTPConfig struct {
@@ -14,6 +15,10 @@ type HTTPConfig struct {
 
 type LogConfig struct {
 	Level string `env:"LEVEL" env-default:"info"`
+}
+
+type DBConfig struct {
+	DSN string `env:"DSN" env-default:"postgres://wallet:wallet@localhost:5432/wallet?sslmode=disable"`
 }
 
 func Load() (*Config, error) {
