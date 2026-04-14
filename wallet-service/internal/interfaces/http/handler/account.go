@@ -1,18 +1,22 @@
 package handler
 
 import (
-	"encoding/json"
+	"context"
 	"errors"
 	"log/slog"
-	"net/http"
+	"time"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 
 	appaccount "github.com/savvinovan/wallet-service/internal/application/account"
 	"github.com/savvinovan/wallet-service/internal/application/command"
 	"github.com/savvinovan/wallet-service/internal/application/query"
 	domain "github.com/savvinovan/wallet-service/internal/domain/account"
+	"github.com/savvinovan/wallet-service/internal/interfaces/http/gen"
 )
+
+// compile-time check
+var _ gen.StrictServerInterface = (*AccountHandler)(nil)
 
 type AccountHandler struct {
 	commands command.Bus
@@ -24,163 +28,218 @@ func NewAccountHandler(commands command.Bus, queries query.Bus, log *slog.Logger
 	return &AccountHandler{commands: commands, queries: queries, log: log}
 }
 
-// POST /accounts
-func (h *AccountHandler) OpenAccount(w http.ResponseWriter, r *http.Request) {
-	var req OpenAccountRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-
+func (h *AccountHandler) OpenAccount(ctx context.Context, req gen.OpenAccountRequestObject) (gen.OpenAccountResponseObject, error) {
 	accountID := domain.NewAccountID()
 	cmd := appaccount.OpenAccountCommand{
 		AccountID:  accountID,
-		CustomerID: domain.CustomerID(req.CustomerID),
-		Currency:   req.Currency,
+		CustomerID: domain.CustomerID(req.Body.CustomerId.String()),
+		Currency:   req.Body.Currency,
 	}
-	if err := h.commands.Dispatch(r.Context(), cmd); err != nil {
-		h.handleError(w, err)
-		return
+	if err := h.commands.Dispatch(ctx, cmd); err != nil {
+		return h.openAccountErr(err), nil
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(map[string]string{"account_id": string(accountID)})
+	id, err := uuid.Parse(string(accountID))
+	if err != nil {
+		h.log.Error("failed to parse generated account ID", "error", err)
+		return gen.OpenAccount500JSONResponse{InternalErrorJSONResponse: gen.InternalErrorJSONResponse{Message: "internal error"}}, nil
+	}
+	return gen.OpenAccount201JSONResponse{AccountId: id}, nil
 }
 
-// POST /accounts/{id}/deposit
-func (h *AccountHandler) Deposit(w http.ResponseWriter, r *http.Request) {
-	accountID := domain.AccountID(chi.URLParam(r, "id"))
-
-	var req DepositRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
-		return
+func (h *AccountHandler) openAccountErr(err error) gen.OpenAccountResponseObject {
+	switch {
+	case errors.Is(err, domain.ErrAccountAlreadyExists):
+		return gen.OpenAccount422JSONResponse{UnprocessableEntityJSONResponse: gen.UnprocessableEntityJSONResponse{Message: err.Error()}}
+	default:
+		h.log.Error("OpenAccount unhandled error", "error", err)
+		return gen.OpenAccount500JSONResponse{InternalErrorJSONResponse: gen.InternalErrorJSONResponse{Message: "internal error"}}
 	}
+}
 
-	money, err := domain.NewMoney(req.Amount, req.Currency)
+func (h *AccountHandler) Deposit(ctx context.Context, req gen.DepositRequestObject) (gen.DepositResponseObject, error) {
+	money, err := domain.NewMoney(req.Body.Amount, req.Body.Currency)
 	if err != nil {
-		writeError(w, http.StatusUnprocessableEntity, err.Error())
-		return
+		return gen.Deposit422JSONResponse{UnprocessableEntityJSONResponse: gen.UnprocessableEntityJSONResponse{Message: err.Error()}}, nil
 	}
 	cmd := appaccount.DepositMoneyCommand{
-		AccountID: accountID,
+		AccountID: domain.AccountID(req.Id.String()),
 		Amount:    money,
 	}
-	if err := h.commands.Dispatch(r.Context(), cmd); err != nil {
-		h.handleError(w, err)
-		return
+	if err := h.commands.Dispatch(ctx, cmd); err != nil {
+		return h.depositErr(err), nil
 	}
-
-	w.WriteHeader(http.StatusNoContent)
+	return gen.Deposit204Response{}, nil
 }
 
-// POST /accounts/{id}/withdraw
-func (h *AccountHandler) Withdraw(w http.ResponseWriter, r *http.Request) {
-	accountID := domain.AccountID(chi.URLParam(r, "id"))
-
-	var req WithdrawRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
-		return
+func (h *AccountHandler) depositErr(err error) gen.DepositResponseObject {
+	switch {
+	case errors.Is(err, domain.ErrAccountNotFound):
+		return gen.Deposit404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse{Message: err.Error()}}
+	case errors.Is(err, domain.ErrInsufficientFunds),
+		errors.Is(err, domain.ErrNotActive),
+		errors.Is(err, domain.ErrCurrencyMismatch),
+		errors.Is(err, domain.ErrNonPositiveAmount):
+		return gen.Deposit422JSONResponse{UnprocessableEntityJSONResponse: gen.UnprocessableEntityJSONResponse{Message: err.Error()}}
+	default:
+		h.log.Error("Deposit unhandled error", "error", err)
+		return gen.Deposit500JSONResponse{InternalErrorJSONResponse: gen.InternalErrorJSONResponse{Message: "internal error"}}
 	}
+}
 
-	money, err := domain.NewMoney(req.Amount, req.Currency)
+func (h *AccountHandler) Withdraw(ctx context.Context, req gen.WithdrawRequestObject) (gen.WithdrawResponseObject, error) {
+	money, err := domain.NewMoney(req.Body.Amount, req.Body.Currency)
 	if err != nil {
-		writeError(w, http.StatusUnprocessableEntity, err.Error())
-		return
+		return gen.Withdraw422JSONResponse{UnprocessableEntityJSONResponse: gen.UnprocessableEntityJSONResponse{Message: err.Error()}}, nil
 	}
 	cmd := appaccount.WithdrawMoneyCommand{
-		AccountID: accountID,
+		AccountID: domain.AccountID(req.Id.String()),
 		Amount:    money,
 	}
-	if err := h.commands.Dispatch(r.Context(), cmd); err != nil {
-		h.handleError(w, err)
-		return
+	if err := h.commands.Dispatch(ctx, cmd); err != nil {
+		return h.withdrawErr(err), nil
 	}
-
-	w.WriteHeader(http.StatusNoContent)
+	return gen.Withdraw204Response{}, nil
 }
 
-// GET /accounts/{id}/balance
-func (h *AccountHandler) GetBalance(w http.ResponseWriter, r *http.Request) {
-	accountID := domain.AccountID(chi.URLParam(r, "id"))
+func (h *AccountHandler) withdrawErr(err error) gen.WithdrawResponseObject {
+	switch {
+	case errors.Is(err, domain.ErrAccountNotFound):
+		return gen.Withdraw404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse{Message: err.Error()}}
+	case errors.Is(err, domain.ErrInsufficientFunds),
+		errors.Is(err, domain.ErrNotActive),
+		errors.Is(err, domain.ErrCurrencyMismatch),
+		errors.Is(err, domain.ErrNonPositiveAmount):
+		return gen.Withdraw422JSONResponse{UnprocessableEntityJSONResponse: gen.UnprocessableEntityJSONResponse{Message: err.Error()}}
+	default:
+		h.log.Error("Withdraw unhandled error", "error", err)
+		return gen.Withdraw500JSONResponse{InternalErrorJSONResponse: gen.InternalErrorJSONResponse{Message: "internal error"}}
+	}
+}
 
-	result, err := h.queries.Ask(r.Context(), appaccount.GetBalanceQuery{AccountID: accountID})
+func (h *AccountHandler) GetBalance(ctx context.Context, req gen.GetBalanceRequestObject) (gen.GetBalanceResponseObject, error) {
+	result, err := h.queries.Ask(ctx, appaccount.GetBalanceQuery{AccountID: domain.AccountID(req.Id.String())})
 	if err != nil {
-		h.handleError(w, err)
-		return
+		return h.getBalanceErr(err), nil
 	}
 
 	balance, ok := result.(appaccount.BalanceResult)
 	if !ok {
-		h.log.Error("unexpected query result type")
-		writeError(w, http.StatusInternalServerError, "internal error")
-		return
+		h.log.Error("GetBalance: unexpected query result type")
+		return gen.GetBalance500JSONResponse{InternalErrorJSONResponse: gen.InternalErrorJSONResponse{Message: "internal error"}}, nil
 	}
 
-	resp := BalanceResponse{
-		AccountID:  string(balance.AccountID),
-		CustomerID: string(balance.CustomerID),
+	accountID, err := uuid.Parse(string(balance.AccountID))
+	if err != nil {
+		h.log.Error("GetBalance: failed to parse account ID", "error", err)
+		return gen.GetBalance500JSONResponse{InternalErrorJSONResponse: gen.InternalErrorJSONResponse{Message: "internal error"}}, nil
+	}
+	customerID, err := uuid.Parse(string(balance.CustomerID))
+	if err != nil {
+		h.log.Error("GetBalance: failed to parse customer ID", "error", err)
+		return gen.GetBalance500JSONResponse{InternalErrorJSONResponse: gen.InternalErrorJSONResponse{Message: "internal error"}}, nil
+	}
+
+	return gen.GetBalance200JSONResponse{
+		AccountId:  accountID,
+		CustomerId: customerID,
 		Balance:    balance.Balance.Amount,
 		Currency:   balance.Balance.Currency,
-		Status:     balance.Status,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
+		Status:     gen.BalanceResponseStatus(balance.Status),
+	}, nil
 }
 
-// GET /accounts/{id}/transactions
-func (h *AccountHandler) GetTransactions(w http.ResponseWriter, r *http.Request) {
-	accountID := domain.AccountID(chi.URLParam(r, "id"))
+func (h *AccountHandler) getBalanceErr(err error) gen.GetBalanceResponseObject {
+	switch {
+	case errors.Is(err, domain.ErrAccountNotFound):
+		return gen.GetBalance404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse{Message: err.Error()}}
+	default:
+		h.log.Error("GetBalance unhandled error", "error", err)
+		return gen.GetBalance500JSONResponse{InternalErrorJSONResponse: gen.InternalErrorJSONResponse{Message: "internal error"}}
+	}
+}
 
-	result, err := h.queries.Ask(r.Context(), appaccount.GetTransactionsQuery{AccountID: accountID})
+func (h *AccountHandler) GetTransactions(ctx context.Context, req gen.GetTransactionsRequestObject) (gen.GetTransactionsResponseObject, error) {
+	result, err := h.queries.Ask(ctx, appaccount.GetTransactionsQuery{AccountID: domain.AccountID(req.Id.String())})
 	if err != nil {
-		h.handleError(w, err)
-		return
+		return h.getTransactionsErr(err), nil
 	}
 
 	records, ok := result.([]appaccount.TransactionRecord)
 	if !ok {
-		h.log.Error("unexpected query result type")
-		writeError(w, http.StatusInternalServerError, "internal error")
-		return
+		h.log.Error("GetTransactions: unexpected query result type")
+		return gen.GetTransactions500JSONResponse{InternalErrorJSONResponse: gen.InternalErrorJSONResponse{Message: "internal error"}}, nil
 	}
 
-	resp := make([]TransactionResponse, len(records))
+	resp := make(gen.GetTransactions200JSONResponse, len(records))
 	for i, rec := range records {
-		resp[i] = TransactionResponse{
-			Type:       rec.Type,
+		t, err := time.Parse(time.RFC3339, rec.OccurredAt)
+		if err != nil {
+			h.log.Error("GetTransactions: failed to parse occurred_at", "error", err, "value", rec.OccurredAt)
+			return gen.GetTransactions500JSONResponse{InternalErrorJSONResponse: gen.InternalErrorJSONResponse{Message: "internal error"}}, nil
+		}
+		resp[i] = gen.TransactionRecord{
+			Type:       gen.TransactionRecordType(rec.Type),
 			Amount:     rec.Amount.Amount,
 			Currency:   rec.Amount.Currency,
-			OccurredAt: rec.OccurredAt,
+			OccurredAt: t,
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
+	return resp, nil
 }
 
-func (h *AccountHandler) handleError(w http.ResponseWriter, err error) {
+func (h *AccountHandler) getTransactionsErr(err error) gen.GetTransactionsResponseObject {
 	switch {
 	case errors.Is(err, domain.ErrAccountNotFound):
-		writeError(w, http.StatusNotFound, err.Error())
-	case errors.Is(err, domain.ErrInsufficientFunds),
-		errors.Is(err, domain.ErrNotActive),
-		errors.Is(err, domain.ErrNotPending),
-		errors.Is(err, domain.ErrAccountAlreadyExists),
-		errors.Is(err, domain.ErrCurrencyMismatch),
-		errors.Is(err, domain.ErrNonPositiveAmount):
-		writeError(w, http.StatusUnprocessableEntity, err.Error())
+		return gen.GetTransactions404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse{Message: err.Error()}}
 	default:
-		h.log.Error("unhandled error", "error", err)
-		writeError(w, http.StatusInternalServerError, "internal error")
+		h.log.Error("GetTransactions unhandled error", "error", err)
+		return gen.GetTransactions500JSONResponse{InternalErrorJSONResponse: gen.InternalErrorJSONResponse{Message: "internal error"}}
 	}
 }
 
-func writeError(w http.ResponseWriter, status int, msg string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(ErrorResponse{Message: msg})
+func (h *AccountHandler) ActivateAccount(ctx context.Context, req gen.ActivateAccountRequestObject) (gen.ActivateAccountResponseObject, error) {
+	cmd := appaccount.ActivateAccountCommand{
+		AccountID: domain.AccountID(req.Id.String()),
+	}
+	if err := h.commands.Dispatch(ctx, cmd); err != nil {
+		return h.activateErr(err), nil
+	}
+	return gen.ActivateAccount204Response{}, nil
+}
+
+func (h *AccountHandler) activateErr(err error) gen.ActivateAccountResponseObject {
+	switch {
+	case errors.Is(err, domain.ErrAccountNotFound):
+		return gen.ActivateAccount404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse{Message: err.Error()}}
+	case errors.Is(err, domain.ErrNotPending):
+		return gen.ActivateAccount422JSONResponse{UnprocessableEntityJSONResponse: gen.UnprocessableEntityJSONResponse{Message: err.Error()}}
+	default:
+		h.log.Error("ActivateAccount unhandled error", "error", err)
+		return gen.ActivateAccount500JSONResponse{InternalErrorJSONResponse: gen.InternalErrorJSONResponse{Message: "internal error"}}
+	}
+}
+
+func (h *AccountHandler) FreezeAccount(ctx context.Context, req gen.FreezeAccountRequestObject) (gen.FreezeAccountResponseObject, error) {
+	cmd := appaccount.FreezeAccountCommand{
+		AccountID: domain.AccountID(req.Id.String()),
+		Reason:    req.Body.Reason,
+	}
+	if err := h.commands.Dispatch(ctx, cmd); err != nil {
+		return h.freezeErr(err), nil
+	}
+	return gen.FreezeAccount204Response{}, nil
+}
+
+func (h *AccountHandler) freezeErr(err error) gen.FreezeAccountResponseObject {
+	switch {
+	case errors.Is(err, domain.ErrAccountNotFound):
+		return gen.FreezeAccount404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse{Message: err.Error()}}
+	case errors.Is(err, domain.ErrNotActive):
+		return gen.FreezeAccount422JSONResponse{UnprocessableEntityJSONResponse: gen.UnprocessableEntityJSONResponse{Message: err.Error()}}
+	default:
+		h.log.Error("FreezeAccount unhandled error", "error", err)
+		return gen.FreezeAccount500JSONResponse{InternalErrorJSONResponse: gen.InternalErrorJSONResponse{Message: "internal error"}}
+	}
 }

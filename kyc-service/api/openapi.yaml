@@ -1,0 +1,165 @@
+openapi: "3.0.3"
+info:
+  title: KYC Service
+  version: "1.0.0"
+  description: |
+    KYC verification workflow — submit, approve, reject, and query verification status.
+
+paths:
+  /kyc:
+    post:
+      operationId: SubmitKYC
+      summary: Submit a KYC verification request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitKYCRequest'
+      responses:
+        '201':
+          description: Verification submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmitKYCResponse'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /kyc/{id}/approve:
+    post:
+      operationId: ApproveKYC
+      summary: Approve a KYC verification (KYC passed)
+      parameters:
+        - $ref: '#/components/parameters/VerificationID'
+      responses:
+        '204':
+          description: Verification approved
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /kyc/{id}/reject:
+    post:
+      operationId: RejectKYC
+      summary: Reject a KYC verification (KYC failed)
+      parameters:
+        - $ref: '#/components/parameters/VerificationID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectKYCRequest'
+      responses:
+        '204':
+          description: Verification rejected
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /kyc/{id}:
+    get:
+      operationId: GetKYCStatus
+      summary: Get verification status
+      parameters:
+        - $ref: '#/components/parameters/VerificationID'
+      responses:
+        '200':
+          description: Verification status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KYCStatusResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    VerificationID:
+      name: id
+      in: path
+      required: true
+      description: Verification UUID v7
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    SubmitKYCRequest:
+      type: object
+      required: [customer_id]
+      properties:
+        customer_id:
+          type: string
+          format: uuid
+          description: Customer UUID v7
+
+    SubmitKYCResponse:
+      type: object
+      required: [verification_id]
+      properties:
+        verification_id:
+          type: string
+          format: uuid
+
+    RejectKYCRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+
+    KYCStatusResponse:
+      type: object
+      required: [verification_id, customer_id, status]
+      properties:
+        verification_id:
+          type: string
+          format: uuid
+        customer_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [Submitted, Verified, Rejected]
+        reason:
+          type: string
+          description: Rejection reason (only present when status is Rejected)
+
+    Error:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    UnprocessableEntity:
+      description: Business rule violation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

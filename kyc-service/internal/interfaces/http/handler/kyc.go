@@ -1,18 +1,21 @@
 package handler
 
 import (
-	"encoding/json"
+	"context"
 	"errors"
 	"log/slog"
-	"net/http"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 
 	appkyc "github.com/savvinovan/kyc-service/internal/application/kyc"
 	"github.com/savvinovan/kyc-service/internal/application/command"
 	"github.com/savvinovan/kyc-service/internal/application/query"
 	domain "github.com/savvinovan/kyc-service/internal/domain/kyc"
+	"github.com/savvinovan/kyc-service/internal/interfaces/http/gen"
 )
+
+// compile-time check
+var _ gen.StrictServerInterface = (*KYCHandler)(nil)
 
 type KYCHandler struct {
 	commands command.Bus
@@ -24,109 +27,124 @@ func NewKYCHandler(commands command.Bus, queries query.Bus, log *slog.Logger) *K
 	return &KYCHandler{commands: commands, queries: queries, log: log}
 }
 
-// POST /kyc
-func (h *KYCHandler) Submit(w http.ResponseWriter, r *http.Request) {
-	var req SubmitKYCRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-
+func (h *KYCHandler) SubmitKYC(ctx context.Context, req gen.SubmitKYCRequestObject) (gen.SubmitKYCResponseObject, error) {
 	verificationID := domain.NewVerificationID()
 	cmd := appkyc.SubmitKYCCommand{
 		VerificationID: verificationID,
-		CustomerID:     domain.CustomerID(req.CustomerID),
+		CustomerID:     domain.CustomerID(req.Body.CustomerId.String()),
 	}
-	if err := h.commands.Dispatch(r.Context(), cmd); err != nil {
-		h.handleError(w, err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(map[string]string{"verification_id": string(verificationID)})
-}
-
-// POST /kyc/{id}/approve
-func (h *KYCHandler) Approve(w http.ResponseWriter, r *http.Request) {
-	verificationID := domain.VerificationID(chi.URLParam(r, "id"))
-
-	cmd := appkyc.ApproveKYCCommand{VerificationID: verificationID}
-	if err := h.commands.Dispatch(r.Context(), cmd); err != nil {
-		h.handleError(w, err)
-		return
+	if err := h.commands.Dispatch(ctx, cmd); err != nil {
+		return h.submitErr(err), nil
 	}
 
-	w.WriteHeader(http.StatusNoContent)
-}
-
-// POST /kyc/{id}/reject
-func (h *KYCHandler) Reject(w http.ResponseWriter, r *http.Request) {
-	verificationID := domain.VerificationID(chi.URLParam(r, "id"))
-
-	var req RejectKYCRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-
-	cmd := appkyc.RejectKYCCommand{
-		VerificationID: verificationID,
-		Reason:         req.Reason,
-	}
-	if err := h.commands.Dispatch(r.Context(), cmd); err != nil {
-		h.handleError(w, err)
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
-}
-
-// GET /kyc/{id}
-func (h *KYCHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
-	verificationID := domain.VerificationID(chi.URLParam(r, "id"))
-
-	result, err := h.queries.Ask(r.Context(), appkyc.GetKYCStatusQuery{VerificationID: verificationID})
+	id, err := uuid.Parse(string(verificationID))
 	if err != nil {
-		h.handleError(w, err)
-		return
+		h.log.Error("SubmitKYC: failed to parse generated verification ID", "error", err)
+		return gen.SubmitKYC500JSONResponse{InternalErrorJSONResponse: gen.InternalErrorJSONResponse{Message: "internal error"}}, nil
+	}
+	return gen.SubmitKYC201JSONResponse{VerificationId: id}, nil
+}
+
+func (h *KYCHandler) submitErr(err error) gen.SubmitKYCResponseObject {
+	switch {
+	case errors.Is(err, domain.ErrVerificationAlreadyExists):
+		return gen.SubmitKYC422JSONResponse{UnprocessableEntityJSONResponse: gen.UnprocessableEntityJSONResponse{Message: err.Error()}}
+	default:
+		h.log.Error("SubmitKYC unhandled error", "error", err)
+		return gen.SubmitKYC500JSONResponse{InternalErrorJSONResponse: gen.InternalErrorJSONResponse{Message: "internal error"}}
+	}
+}
+
+func (h *KYCHandler) ApproveKYC(ctx context.Context, req gen.ApproveKYCRequestObject) (gen.ApproveKYCResponseObject, error) {
+	cmd := appkyc.ApproveKYCCommand{
+		VerificationID: domain.VerificationID(req.Id.String()),
+	}
+	if err := h.commands.Dispatch(ctx, cmd); err != nil {
+		return h.approveErr(err), nil
+	}
+	return gen.ApproveKYC204Response{}, nil
+}
+
+func (h *KYCHandler) approveErr(err error) gen.ApproveKYCResponseObject {
+	switch {
+	case errors.Is(err, domain.ErrVerificationNotFound):
+		return gen.ApproveKYC404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse{Message: err.Error()}}
+	case errors.Is(err, domain.ErrAlreadyVerified),
+		errors.Is(err, domain.ErrAlreadyRejected),
+		errors.Is(err, domain.ErrNotSubmitted):
+		return gen.ApproveKYC422JSONResponse{UnprocessableEntityJSONResponse: gen.UnprocessableEntityJSONResponse{Message: err.Error()}}
+	default:
+		h.log.Error("ApproveKYC unhandled error", "error", err)
+		return gen.ApproveKYC500JSONResponse{InternalErrorJSONResponse: gen.InternalErrorJSONResponse{Message: "internal error"}}
+	}
+}
+
+func (h *KYCHandler) RejectKYC(ctx context.Context, req gen.RejectKYCRequestObject) (gen.RejectKYCResponseObject, error) {
+	cmd := appkyc.RejectKYCCommand{
+		VerificationID: domain.VerificationID(req.Id.String()),
+		Reason:         req.Body.Reason,
+	}
+	if err := h.commands.Dispatch(ctx, cmd); err != nil {
+		return h.rejectErr(err), nil
+	}
+	return gen.RejectKYC204Response{}, nil
+}
+
+func (h *KYCHandler) rejectErr(err error) gen.RejectKYCResponseObject {
+	switch {
+	case errors.Is(err, domain.ErrVerificationNotFound):
+		return gen.RejectKYC404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse{Message: err.Error()}}
+	case errors.Is(err, domain.ErrAlreadyVerified),
+		errors.Is(err, domain.ErrAlreadyRejected),
+		errors.Is(err, domain.ErrNotSubmitted):
+		return gen.RejectKYC422JSONResponse{UnprocessableEntityJSONResponse: gen.UnprocessableEntityJSONResponse{Message: err.Error()}}
+	default:
+		h.log.Error("RejectKYC unhandled error", "error", err)
+		return gen.RejectKYC500JSONResponse{InternalErrorJSONResponse: gen.InternalErrorJSONResponse{Message: "internal error"}}
+	}
+}
+
+func (h *KYCHandler) GetKYCStatus(ctx context.Context, req gen.GetKYCStatusRequestObject) (gen.GetKYCStatusResponseObject, error) {
+	result, err := h.queries.Ask(ctx, appkyc.GetKYCStatusQuery{VerificationID: domain.VerificationID(req.Id.String())})
+	if err != nil {
+		return h.getStatusErr(err), nil
 	}
 
 	status, ok := result.(appkyc.KYCStatusResult)
 	if !ok {
-		h.log.Error("unexpected query result type")
-		writeError(w, http.StatusInternalServerError, "internal error")
-		return
+		h.log.Error("GetKYCStatus: unexpected query result type")
+		return gen.GetKYCStatus500JSONResponse{InternalErrorJSONResponse: gen.InternalErrorJSONResponse{Message: "internal error"}}, nil
 	}
 
-	resp := KYCStatusResponse{
-		VerificationID: string(status.VerificationID),
-		CustomerID:     string(status.CustomerID),
-		Status:         status.Status,
-		Reason:         status.Reason,
+	verificationID, err := uuid.Parse(string(status.VerificationID))
+	if err != nil {
+		h.log.Error("GetKYCStatus: failed to parse verification ID", "error", err)
+		return gen.GetKYCStatus500JSONResponse{InternalErrorJSONResponse: gen.InternalErrorJSONResponse{Message: "internal error"}}, nil
+	}
+	customerID, err := uuid.Parse(string(status.CustomerID))
+	if err != nil {
+		h.log.Error("GetKYCStatus: failed to parse customer ID", "error", err)
+		return gen.GetKYCStatus500JSONResponse{InternalErrorJSONResponse: gen.InternalErrorJSONResponse{Message: "internal error"}}, nil
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
+	resp := gen.GetKYCStatus200JSONResponse{
+		VerificationId: verificationID,
+		CustomerId:     customerID,
+		Status:         gen.KYCStatusResponseStatus(status.Status),
+	}
+	if status.Reason != "" {
+		resp.Reason = &status.Reason
+	}
+
+	return resp, nil
 }
 
-func (h *KYCHandler) handleError(w http.ResponseWriter, err error) {
+func (h *KYCHandler) getStatusErr(err error) gen.GetKYCStatusResponseObject {
 	switch {
 	case errors.Is(err, domain.ErrVerificationNotFound):
-		writeError(w, http.StatusNotFound, err.Error())
-	case errors.Is(err, domain.ErrAlreadyVerified),
-		errors.Is(err, domain.ErrAlreadyRejected),
-		errors.Is(err, domain.ErrNotSubmitted),
-		errors.Is(err, domain.ErrVerificationAlreadyExists):
-		writeError(w, http.StatusUnprocessableEntity, err.Error())
+		return gen.GetKYCStatus404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse{Message: err.Error()}}
 	default:
-		h.log.Error("unhandled error", "error", err)
-		writeError(w, http.StatusInternalServerError, "internal error")
+		h.log.Error("GetKYCStatus unhandled error", "error", err)
+		return gen.GetKYCStatus500JSONResponse{InternalErrorJSONResponse: gen.InternalErrorJSONResponse{Message: "internal error"}}
 	}
-}
-
-func writeError(w http.ResponseWriter, status int, msg string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(ErrorResponse{Message: msg})
 }

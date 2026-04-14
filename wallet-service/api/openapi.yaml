@@ -1,0 +1,277 @@
+openapi: "3.0.3"
+info:
+  title: Wallet Service
+  version: "1.0.0"
+  description: |
+    Account management — open accounts, deposit, withdraw, status transitions.
+    Monetary amounts are decimal strings (e.g. "100.50") to preserve precision.
+
+paths:
+  /accounts:
+    post:
+      operationId: OpenAccount
+      summary: Open a new account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenAccountRequest'
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenAccountResponse'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /accounts/{id}/deposit:
+    post:
+      operationId: Deposit
+      summary: Deposit money into an account
+      parameters:
+        - $ref: '#/components/parameters/AccountID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MoneyRequest'
+      responses:
+        '204':
+          description: Deposit successful
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /accounts/{id}/withdraw:
+    post:
+      operationId: Withdraw
+      summary: Withdraw money from an account
+      parameters:
+        - $ref: '#/components/parameters/AccountID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MoneyRequest'
+      responses:
+        '204':
+          description: Withdrawal successful
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /accounts/{id}/activate:
+    post:
+      operationId: ActivateAccount
+      summary: Activate account (KYC approved)
+      parameters:
+        - $ref: '#/components/parameters/AccountID'
+      responses:
+        '204':
+          description: Account activated
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /accounts/{id}/freeze:
+    post:
+      operationId: FreezeAccount
+      summary: Freeze account (KYC rejected or manual)
+      parameters:
+        - $ref: '#/components/parameters/AccountID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FreezeAccountRequest'
+      responses:
+        '204':
+          description: Account frozen
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /accounts/{id}/balance:
+    get:
+      operationId: GetBalance
+      summary: Get current balance and account status
+      parameters:
+        - $ref: '#/components/parameters/AccountID'
+      responses:
+        '200':
+          description: Current balance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /accounts/{id}/transactions:
+    get:
+      operationId: GetTransactions
+      summary: Get deposit and withdrawal history
+      parameters:
+        - $ref: '#/components/parameters/AccountID'
+      responses:
+        '200':
+          description: Transaction history (empty array if no transactions)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TransactionRecord'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    AccountID:
+      name: id
+      in: path
+      required: true
+      description: Account UUID v7
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    OpenAccountRequest:
+      type: object
+      required: [customer_id, currency]
+      properties:
+        customer_id:
+          type: string
+          format: uuid
+          description: Customer UUID v7
+        currency:
+          type: string
+          description: ISO 4217 currency code
+          example: USD
+
+    OpenAccountResponse:
+      type: object
+      required: [account_id]
+      properties:
+        account_id:
+          type: string
+          format: uuid
+
+    MoneyRequest:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: string
+          description: Decimal amount as string (e.g. "100.50")
+          example: "100.50"
+          x-go-type: decimal.Decimal
+          x-go-type-import:
+            name: decimal
+            path: github.com/shopspring/decimal
+        currency:
+          type: string
+          description: ISO 4217 currency code
+          example: USD
+
+    FreezeAccountRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+
+    BalanceResponse:
+      type: object
+      required: [account_id, customer_id, balance, currency, status]
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        customer_id:
+          type: string
+          format: uuid
+        balance:
+          type: string
+          description: Decimal balance as string
+          x-go-type: decimal.Decimal
+          x-go-type-import:
+            name: decimal
+            path: github.com/shopspring/decimal
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [Pending, Active, Frozen]
+
+    TransactionRecord:
+      type: object
+      required: [type, amount, currency, occurred_at]
+      properties:
+        type:
+          type: string
+          enum: [deposit, withdrawal]
+        amount:
+          type: string
+          description: Decimal amount as string
+          x-go-type: decimal.Decimal
+          x-go-type-import:
+            name: decimal
+            path: github.com/shopspring/decimal
+        currency:
+          type: string
+        occurred_at:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    UnprocessableEntity:
+      description: Business rule violation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

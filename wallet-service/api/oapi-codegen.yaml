@@ -1,0 +1,7 @@
+package: gen
+output: ../internal/interfaces/http/gen/server.gen.go
+generate:
+  strict-server: true
+  chi-server: true
+  models: true
+  embedded-spec: false
