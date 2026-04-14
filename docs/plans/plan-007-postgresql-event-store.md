@@ -2,7 +2,7 @@
 
 | | |
 |-|-|
-| **Status** | Not Started |
+| **Status** | DONE |
 | **Date** | 2026-04-14 |
 | **Depends on** | [PLAN-004](plan-004-wallet-service.md), [PLAN-005](plan-005-kyc-service.md) |
 

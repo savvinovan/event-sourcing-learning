@@ -47,5 +47,13 @@ type Money struct {
 
 ## Docs as Code
 
-- Every code change must have a matching doc update in `docs/`
+- Every code change MUST have a matching doc update in `docs/` — no exceptions
 - Diagrams in Mermaid, docs in Markdown
+- **What to update per change type:**
+  - New HTTP endpoint → update `docs/interfaces/http.md` or `docs/interfaces/kyc-http.md`
+  - New domain event → update `docs/contracts/events.md` and `docs/domain/*.md`
+  - New command/query → update `docs/application/commands.md` or `docs/application/queries.md`
+  - New infrastructure (DB, queue, etc.) → add/update file in `docs/infrastructure/`
+  - New package or OpenAPI spec change → update relevant interface or infrastructure doc
+  - Plan completed → mark as completed in `docs/plans/README.md` and the plan file itself
+- Run plannotator review after code changes AND after doc updates

@@ -9,4 +9,5 @@ The domain layer defines **what** must happen; infrastructure defines **how**.
 
 ## Contents
 
-- [Event Store](eventstore.md) — `internal/infrastructure/eventstore/store.go`
+- [Event Store](eventstore.md) — `wallet-service/internal/infrastructure/eventstore/`
+- [Async Projector](projector.md) — `wallet-service/internal/infrastructure/projector/` and `wallet-service/cmd/projector/`

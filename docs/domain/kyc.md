@@ -13,7 +13,7 @@ Once verified or rejected, the status is **terminal** — no further transitions
 ```mermaid
 classDiagram
     class KYCVerification {
-        -customerID string
+        -customerID CustomerID
         -status KYCStatus
         -reason string
         +Submit(id, customerID)

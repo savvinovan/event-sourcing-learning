@@ -236,7 +236,7 @@ func (h *AccountHandler) freezeErr(err error) gen.FreezeAccountResponseObject {
 	switch {
 	case errors.Is(err, domain.ErrAccountNotFound):
 		return gen.FreezeAccount404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse{Message: err.Error()}}
-	case errors.Is(err, domain.ErrNotActive):
+	case errors.Is(err, domain.ErrNotPending):
 		return gen.FreezeAccount422JSONResponse{UnprocessableEntityJSONResponse: gen.UnprocessableEntityJSONResponse{Message: err.Error()}}
 	default:
 		h.log.Error("FreezeAccount unhandled error", "error", err)
