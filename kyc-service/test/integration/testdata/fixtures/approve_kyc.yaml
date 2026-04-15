@@ -1,0 +1,6 @@
+scenario: "approve KYC — KYCVerified published to Kafka"
+input:
+  customer_id_suffix: "cust-approved-001"
+expected:
+  kafka_topic: "kyc.verified"
+  has_customer_id: true

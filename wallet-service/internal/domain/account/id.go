@@ -12,3 +12,8 @@ type CustomerID string
 func NewAccountID() AccountID {
 	return AccountID(uuid.Must(uuid.NewV7()).String())
 }
+
+// NewCustomerID generates a new time-ordered CustomerID using UUID v7.
+func NewCustomerID() CustomerID {
+	return CustomerID(uuid.Must(uuid.NewV7()).String())
+}

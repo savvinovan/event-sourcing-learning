@@ -1,0 +1,6 @@
+scenario: "KYCVerified event activates Pending account"
+input:
+  currency: "USD"
+expected:
+  status_before: "Pending"
+  status_after: "Active"

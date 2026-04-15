@@ -1,0 +1,8 @@
+scenario: "two concurrent withdrawals — exactly one succeeds, one fails"
+input:
+  currency: "USD"
+  deposit_amount: "100.00"
+  withdraw_amount: "100.00"
+expected:
+  successes: 1
+  conflicts: 1

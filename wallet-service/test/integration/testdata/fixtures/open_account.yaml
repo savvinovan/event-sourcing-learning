@@ -1,0 +1,14 @@
+scenario: "open account — USD, status Pending, balance zero"
+input:
+  currency: "USD"
+expected:
+  status: "Pending"
+  balance: "0.00"
+
+---
+scenario: "open account — EUR, status Pending, balance zero"
+input:
+  currency: "EUR"
+expected:
+  status: "Pending"
+  balance: "0.00"

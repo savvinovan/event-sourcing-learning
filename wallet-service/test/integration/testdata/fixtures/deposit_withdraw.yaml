@@ -1,0 +1,26 @@
+scenario: "deposit 100 USD — balance becomes 100.00"
+input:
+  currency: "USD"
+  deposit_amount: "100.00"
+expected:
+  balance_after_deposit: "100.00"
+
+---
+scenario: "withdraw 30 USD from 100 USD account — balance becomes 70.00"
+input:
+  currency: "USD"
+  deposit_amount: "100.00"
+  withdraw_amount: "30.00"
+expected:
+  balance_after_deposit: "100.00"
+  balance_after_withdraw: "70.00"
+
+---
+scenario: "withdraw more than balance returns ErrInsufficientFunds"
+input:
+  currency: "USD"
+  deposit_amount: "50.00"
+  withdraw_amount: "100.00"
+expected:
+  balance_after_deposit: "50.00"
+  error: "insufficient_funds"

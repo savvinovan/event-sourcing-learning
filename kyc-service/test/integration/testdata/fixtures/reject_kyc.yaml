@@ -1,0 +1,8 @@
+scenario: "reject KYC — KYCRejected published to Kafka with reason"
+input:
+  customer_id_suffix: "cust-rejected-001"
+  reason: "identity documents expired"
+expected:
+  kafka_topic: "kyc.rejected"
+  has_customer_id: true
+  has_reason: true

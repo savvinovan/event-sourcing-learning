@@ -1,0 +1,38 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  wallet-service:
+    name: wallet-service integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: wallet-service/go.mod
+          cache-dependency-path: wallet-service/go.sum
+      - name: Run wallet-service integration tests
+        run: make test-integration
+        working-directory: wallet-service
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: "false"
+
+  kyc-service:
+    name: kyc-service integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: kyc-service/go.mod
+          cache-dependency-path: kyc-service/go.sum
+      - name: Run kyc-service integration tests
+        run: make test-integration
+        working-directory: kyc-service
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: "false"
+

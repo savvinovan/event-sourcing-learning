@@ -1,4 +1,4 @@
-.PHONY: run build test lint tidy
+.PHONY: run build test test-integration test-all lint tidy
 
 run:
 	go run ./cmd/api/...
@@ -11,6 +11,13 @@ test:
 
 lint:
 	golangci-lint run ./...
+
+test-integration:
+	go test -tags=integration -timeout=5m -v ./test/integration/...
+
+test-all:
+	go test -race ./...
+	go test -tags=integration -race -timeout=5m ./test/integration/...
 
 tidy:
 	go mod tidy

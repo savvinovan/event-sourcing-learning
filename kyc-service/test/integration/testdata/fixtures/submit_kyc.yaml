@@ -1,0 +1,6 @@
+scenario: "submit KYC — verification stored in event store"
+input:
+  customer_id_suffix: "cust-001"
+expected:
+  event_count: 1
+  event_type: "KYCSubmitted"

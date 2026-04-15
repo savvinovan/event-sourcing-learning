@@ -1,0 +1,7 @@
+scenario: "KYCRejected event freezes Pending account"
+input:
+  currency: "USD"
+  reason: "documents expired"
+expected:
+  status_before: "Pending"
+  status_after: "Frozen"
