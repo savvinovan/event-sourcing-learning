@@ -21,6 +21,10 @@ Documentation and code may link to plans to indicate when a feature was introduc
 | [PLAN-008](plan-008-integration-tests.md) | Integration tests with Testcontainers | DONE | 2026-04-15 |
 | [PLAN-009](plan-009-event-versioning.md) | Event versioning and schema evolution (upcasting) | DONE | 2026-04-13 |
 | [PLAN-010](plan-010-openapi-codegen.md) | OpenAPI-first HTTP layer with oapi-codegen + chi | DONE | 2026-04-15 |
+| [PLAN-011](plan-011-frontend-scaffold.md) | Frontend scaffold + monorepo setup (Vite + React + TS) | Not Started | 2026-04-16 |
+| [PLAN-012](plan-012-admin-api.md) | Admin backend API (accounts, events, projector status) | Not Started | 2026-04-16 |
+| [PLAN-013](plan-013-jwt-auth.md) | JWT authentication — access + refresh tokens | Not Started | 2026-04-16 |
+| [PLAN-014](plan-014-admin-frontend.md) | Admin frontend pages (dashboard, accounts, events) | Not Started | 2026-04-16 |
 
 ## Statuses
 
