@@ -63,7 +63,7 @@ stateDiagram-v2
 | Event | Trigger | Fields |
 |-------|---------|--------|
 | `AccountOpened` | `Open()` | CustomerID `CustomerID`, Currency `string` |
-| `MoneyDeposited` | `Deposit()` | Amount `Money` |
+| `MoneyDeposited` | `Deposit()` | Amount `Money`, Description `string` (schema v2, default `""`) |
 | `MoneyWithdrawn` | `Withdraw()` | Amount `Money` |
 | `AccountActivated` | `Activate()` | — |
 | `AccountFrozen` | `Freeze()` | Reason `string` |

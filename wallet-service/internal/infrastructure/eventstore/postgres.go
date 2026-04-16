@@ -20,12 +20,13 @@ const pgUniqueViolation = "23505"
 // Optimistic concurrency is enforced by both an application-level version check
 // and the UNIQUE (aggregate_id, event_version) DB constraint.
 type PostgresEventStore struct {
-	db       *pgxpool.Pool
-	registry *Registry
+	db        *pgxpool.Pool
+	registry  *Registry
+	upcasters *UpcasterRegistry
 }
 
-func NewPostgresEventStore(db *pgxpool.Pool, registry *Registry) *PostgresEventStore {
-	return &PostgresEventStore{db: db, registry: registry}
+func NewPostgresEventStore(db *pgxpool.Pool, registry *Registry, upcasters *UpcasterRegistry) *PostgresEventStore {
+	return &PostgresEventStore{db: db, registry: registry, upcasters: upcasters}
 }
 
 // Append inserts new events for an aggregate stream.
@@ -58,11 +59,12 @@ func (s *PostgresEventStore) Append(ctx context.Context, aggregateID string, eve
 		}
 
 		eventID := uuid.Must(uuid.NewV7()).String()
+		schemaVersion := s.registry.GetLatestVersion(e.EventType())
 
 		_, err = tx.Exec(ctx, `
-			INSERT INTO events (id, aggregate_id, aggregate_type, event_type, event_version, payload, occurred_at)
-			VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7)
-		`, eventID, e.AggregateID(), e.AggregateType(), e.EventType(), e.Version(), payload, e.OccurredAt())
+			INSERT INTO events (id, aggregate_id, aggregate_type, event_type, event_version, schema_version, payload, occurred_at)
+			VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8)
+		`, eventID, e.AggregateID(), e.AggregateType(), e.EventType(), e.Version(), schemaVersion, payload, e.OccurredAt())
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
@@ -81,7 +83,7 @@ func (s *PostgresEventStore) Append(ctx context.Context, aggregateID string, eve
 // Load returns all events for an aggregate in ascending version order.
 func (s *PostgresEventStore) Load(ctx context.Context, aggregateID string) ([]event.DomainEvent, error) {
 	rows, err := s.db.Query(ctx, `
-		SELECT aggregate_id::text, aggregate_type, event_type, event_version, payload, occurred_at
+		SELECT aggregate_id::text, aggregate_type, event_type, event_version, schema_version, payload, occurred_at
 		FROM events
 		WHERE aggregate_id = $1::uuid
 		ORDER BY event_version ASC
@@ -91,22 +93,28 @@ func (s *PostgresEventStore) Load(ctx context.Context, aggregateID string) ([]ev
 	}
 	defer rows.Close()
 
-	return scanEvents(rows, s.registry)
+	return scanEvents(rows, s.registry, s.upcasters)
 }
 
-func scanEvents(rows pgx.Rows, registry *Registry) ([]event.DomainEvent, error) {
+func scanEvents(rows pgx.Rows, registry *Registry, upcasters *UpcasterRegistry) ([]event.DomainEvent, error) {
 	var result []event.DomainEvent
 	for rows.Next() {
 		var (
-			aggregateID string
-			aggType     string
-			eventType   string
-			version     int
-			payload     []byte
-			occurredAt  time.Time
+			aggregateID   string
+			aggType       string
+			eventType     string
+			version       int
+			schemaVersion int
+			payload       []byte
+			occurredAt    time.Time
 		)
-		if err := rows.Scan(&aggregateID, &aggType, &eventType, &version, &payload, &occurredAt); err != nil {
+		if err := rows.Scan(&aggregateID, &aggType, &eventType, &version, &schemaVersion, &payload, &occurredAt); err != nil {
 			return nil, fmt.Errorf("scan event row: %w", err)
+		}
+		var err error
+		payload, err = upcasters.Upcast(eventType, schemaVersion, payload)
+		if err != nil {
+			return nil, fmt.Errorf("upcast event %s: %w", eventType, err)
 		}
 		base := event.RestoreBase(aggregateID, aggType, eventType, version, occurredAt)
 		e, err := registry.Deserialize(eventType, base, payload)

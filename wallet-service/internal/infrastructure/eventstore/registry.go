@@ -14,6 +14,7 @@ type DeserializeFunc func(base event.Base, payload []byte) (event.DomainEvent, e
 
 // eventCodec pairs serializer and deserializer for one event type.
 type eventCodec struct {
+	version     int
 	serialize   SerializeFunc
 	deserialize DeserializeFunc
 }
@@ -28,9 +29,26 @@ func NewRegistry() *Registry {
 	return &Registry{codecs: make(map[string]eventCodec)}
 }
 
-// Register associates an event type string with its serializer and deserializer.
+// Register associates an event type string with its serializer and deserializer at schema version 1.
 func (r *Registry) Register(eventType string, s SerializeFunc, d DeserializeFunc) {
-	r.codecs[eventType] = eventCodec{serialize: s, deserialize: d}
+	r.RegisterV(eventType, 1, s, d)
+}
+
+// RegisterV is like Register but lets the caller declare the current schema version.
+// Use when introducing a new payload shape (v2, v3, …) so that Append writes the
+// correct schema_version and the UpcasterRegistry can chain transforms for old rows.
+func (r *Registry) RegisterV(eventType string, version int, s SerializeFunc, d DeserializeFunc) {
+	r.codecs[eventType] = eventCodec{version: version, serialize: s, deserialize: d}
+}
+
+// GetLatestVersion returns the schema version the codec expects for eventType.
+// Returns 1 if no codec is registered (safe default for unknown types).
+func (r *Registry) GetLatestVersion(eventType string) int {
+	c, ok := r.codecs[eventType]
+	if !ok {
+		return 1
+	}
+	return c.version
 }
 
 // Serialize encodes the event into JSONB payload bytes.

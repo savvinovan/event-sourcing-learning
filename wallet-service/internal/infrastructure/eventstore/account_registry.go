@@ -41,16 +41,30 @@ func NewAccountRegistry() *Registry {
 		},
 	)
 
-	r.Register(domain.EventTypeMoneyDeposited,
+	// schema v2: adds Description field (default "" for old v1 rows via upcaster)
+	r.RegisterV(domain.EventTypeMoneyDeposited, 2,
 		func(e event.DomainEvent) ([]byte, error) {
-			return serializeMoney(e.(domain.MoneyDeposited).Amount)
+			v := e.(domain.MoneyDeposited)
+			return json.Marshal(moneyDepositedV2Payload{
+				Amount:      v.Amount.Amount.String(),
+				Currency:    v.Amount.Currency,
+				Description: v.Description,
+			})
 		},
 		func(base event.Base, payload []byte) (event.DomainEvent, error) {
-			m, err := deserializeMoney(payload)
-			if err != nil {
-				return nil, fmt.Errorf("deserialize MoneyDeposited: %w", err)
+			var p moneyDepositedV2Payload
+			if err := json.Unmarshal(payload, &p); err != nil {
+				return nil, fmt.Errorf("deserialize MoneyDeposited v2: %w", err)
 			}
-			return domain.MoneyDeposited{Base: base, Amount: m}, nil
+			amount, err := decimal.NewFromString(p.Amount)
+			if err != nil {
+				return nil, fmt.Errorf("parse decimal %q: %w", p.Amount, err)
+			}
+			return domain.MoneyDeposited{
+				Base:        base,
+				Amount:      domain.Money{Amount: amount, Currency: p.Currency},
+				Description: p.Description,
+			}, nil
 		},
 	)
 
@@ -97,9 +111,17 @@ func NewAccountRegistry() *Registry {
 
 // moneyPayload is the JSONB representation of a Money value object.
 // Amount is stored as a string to preserve decimal precision (never as a JSON number).
+// Used by MoneyWithdrawn (schema v1).
 type moneyPayload struct {
 	Amount   string `json:"amount"`
 	Currency string `json:"currency"`
+}
+
+// moneyDepositedV2Payload is the schema v2 shape for MoneyDeposited.
+type moneyDepositedV2Payload struct {
+	Amount      string `json:"amount"`
+	Currency    string `json:"currency"`
+	Description string `json:"description"`
 }
 
 func serializeMoney(m domain.Money) ([]byte, error) {

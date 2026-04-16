@@ -41,13 +41,15 @@ func main() {
 	}
 
 	registry := eventstore.NewAccountRegistry()
+	upcasters := eventstore.NewAccountUpcasterRegistry()
 	applier := projector.NewAccountProjector()
 	runner := projector.NewRunner(
 		pool,
 		registry,
+		upcasters,
 		applier,
 		projector.AccountProjectorName,
-		100,           // batch size
+		100,                  // batch size
 		500*time.Millisecond, // poll interval when idle
 		log,
 	)

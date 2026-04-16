@@ -28,6 +28,7 @@ type EventApplier interface {
 type Runner struct {
 	db            *pgxpool.Pool
 	registry      *eventstore.Registry
+	upcasters     *eventstore.UpcasterRegistry
 	applier       EventApplier
 	projectorName string
 	batchSize     int
@@ -38,6 +39,7 @@ type Runner struct {
 func NewRunner(
 	db *pgxpool.Pool,
 	registry *eventstore.Registry,
+	upcasters *eventstore.UpcasterRegistry,
 	applier EventApplier,
 	projectorName string,
 	batchSize int,
@@ -47,6 +49,7 @@ func NewRunner(
 	return &Runner{
 		db:            db,
 		registry:      registry,
+		upcasters:     upcasters,
 		applier:       applier,
 		projectorName: projectorName,
 		batchSize:     batchSize,
@@ -107,7 +110,7 @@ func (r *Runner) processBatch(ctx context.Context) (int, error) {
 	}
 
 	rows, err := tx.Query(ctx, `
-		SELECT global_seq, aggregate_id, aggregate_type, event_type, event_version, payload, occurred_at
+		SELECT global_seq, aggregate_id, aggregate_type, event_type, event_version, schema_version, payload, occurred_at
 		FROM events
 		WHERE global_seq > $1
 		ORDER BY global_seq ASC
@@ -124,16 +127,21 @@ func (r *Runner) processBatch(ctx context.Context) (int, error) {
 	)
 	for rows.Next() {
 		var (
-			seq         int64
-			aggregateID string
-			aggType     string
-			eventType   string
-			version     int
-			payload     []byte
-			occurredAt  time.Time
+			seq           int64
+			aggregateID   string
+			aggType       string
+			eventType     string
+			version       int
+			schemaVersion int
+			payload       []byte
+			occurredAt    time.Time
 		)
-		if err := rows.Scan(&seq, &aggregateID, &aggType, &eventType, &version, &payload, &occurredAt); err != nil {
+		if err := rows.Scan(&seq, &aggregateID, &aggType, &eventType, &version, &schemaVersion, &payload, &occurredAt); err != nil {
 			return 0, fmt.Errorf("projector: scan event row: %w", err)
+		}
+		payload, err = r.upcasters.Upcast(eventType, schemaVersion, payload)
+		if err != nil {
+			return 0, fmt.Errorf("projector: upcast seq=%d: %w", seq, err)
 		}
 		base := event.RestoreBase(aggregateID, aggType, eventType, version, occurredAt)
 		e, err := r.registry.Deserialize(eventType, base, payload)

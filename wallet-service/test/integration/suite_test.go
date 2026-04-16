@@ -64,7 +64,7 @@ var _ = BeforeSuite(func() {
 	broker, cleanupRP = helpers.StartRedpanda(suiteCtx, GinkgoT())
 
 	// Wire application layer.
-	es := eventstore.NewPostgresEventStore(pool, eventstore.NewAccountRegistry())
+	es := eventstore.NewPostgresEventStore(pool, eventstore.NewAccountRegistry(), eventstore.NewAccountUpcasterRegistry())
 	readRepo = readmodel.NewPostgresReadModelRepository(pool)
 
 	cmdBus = command.NewInMemoryBus()
@@ -80,6 +80,7 @@ var _ = BeforeSuite(func() {
 	proj := projector.NewRunner(
 		pool,
 		eventstore.NewAccountRegistry(),
+		eventstore.NewAccountUpcasterRegistry(),
 		projector.NewAccountProjector(),
 		projector.AccountProjectorName,
 		100,

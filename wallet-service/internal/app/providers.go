@@ -56,7 +56,11 @@ func newDBPool(cfg *config.Config, lc fx.Lifecycle) (*pgxpool.Pool, error) {
 }
 
 func newEventStore(pool *pgxpool.Pool) eventstore.EventStore {
-	return eventstore.NewPostgresEventStore(pool, eventstore.NewAccountRegistry())
+	return eventstore.NewPostgresEventStore(
+		pool,
+		eventstore.NewAccountRegistry(),
+		eventstore.NewAccountUpcasterRegistry(),
+	)
 }
 
 func newReadModelRepo(pool *pgxpool.Pool) appaccount.AccountReadRepository {

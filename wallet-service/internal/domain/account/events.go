@@ -22,7 +22,8 @@ type AccountOpened struct {
 // MoneyDeposited is recorded when funds are credited to an account.
 type MoneyDeposited struct {
 	event.Base
-	Amount Money
+	Amount      Money
+	Description string // schema v2: optional human-readable label; defaults to "" for v1 rows
 }
 
 // MoneyWithdrawn is recorded when funds are debited from an account.
